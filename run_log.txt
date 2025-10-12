@@ -1,0 +1,4 @@
+Error loading configuration: Index was outside the bounds of the array.
+MainWindow initialized.
+Starting to load images...
+Finished loading. Total items in list: 319

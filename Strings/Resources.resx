@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <xsd:schema id="root" xmlns="" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:msdata="urn:schemas-microsoft-com:xml-msdata">
+    <xsd:element name="root" msdata:IsDataSet="true">
+      <xsd:complexType>
+        <xsd:choice maxOccurs="unbounded">
+          <xsd:element name="data">
+            <xsd:complexType>
+              <xsd:sequence>
+                <xsd:element name="value" type="xsd:string" minOccurs="0" />
+              </xsd:sequence>
+              <xsd:attribute name="name" type="xsd:string" />
+              <xsd:attribute name="type" type="xsd:string" />
+              <xsd:attribute name="mimetype" type="xsd:string" />
+            </xsd:complexType>
+          </xsd:element>
+        </xsd:choice>
+      </xsd:complexType>
+    </xsd:element>
+  </xsd:schema>
+  <data name="CopyStatic">
+    <value>Copy as Static Image</value>
+  </data>
+  <data name="CopyFile">
+    <value>Copy as File</value>
+  </data>
+  <data name="NotificationCopiedImage">
+    <value>Copied as image!</value>
+  </data>
+  <data name="NotificationCopiedStatic">
+    <value>Copied as static image!</value>
+  </data>
+  <data name="NotificationCopiedFile">
+    <value>Copied as file!</value>
+  </data>
+  <data name="ErrorFailedToCopy">
+    <value>Failed to copy:</value>
+  </data>
+</root>
