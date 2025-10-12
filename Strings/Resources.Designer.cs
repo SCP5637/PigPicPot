@@ -86,5 +86,47 @@ namespace PigPicPot.Strings {
                 return ResourceManager.GetString("ErrorFailedToCopy", resourceCulture);
             }
         }
+        
+        public static string StaticFilterButtonText {
+            get {
+                return ResourceManager.GetString("StaticFilterButtonText", resourceCulture);
+            }
+        }
+        
+        public static string DynamicFilterButtonText {
+            get {
+                return ResourceManager.GetString("DynamicFilterButtonText", resourceCulture);
+            }
+        }
+        
+        public static string ZhuxxFilterButtonText {
+            get {
+                return ResourceManager.GetString("ZhuxxFilterButtonText", resourceCulture);
+            }
+        }
+        
+        public static string OtherFilterButtonText {
+            get {
+                return ResourceManager.GetString("OtherFilterButtonText", resourceCulture);
+            }
+        }
+        
+        public static string AnimeFilterButtonText {
+            get {
+                return ResourceManager.GetString("AnimeFilterButtonText", resourceCulture);
+            }
+        }
+        
+        public static string RealFilterButtonText {
+            get {
+                return ResourceManager.GetString("RealFilterButtonText", resourceCulture);
+            }
+        }
+        
+        public static string LoadingText {
+            get {
+                return ResourceManager.GetString("LoadingText", resourceCulture);
+            }
+        }
     }
 }

@@ -1,4 +1,6 @@
 @echo off
+
+:main_loop
 cls
 
 :question1
@@ -52,16 +54,24 @@ echo Starting PigPicPot... (Output will be written to run_log.txt)
 echo.
 del run_log.txt 2>nul
 dotnet run > run_log.txt 2>&1
-goto end_script
+goto restart_prompt
 
 :run_without_log
 echo.
 echo Starting PigPicPot...
 echo.
 dotnet run
-goto end_script
+goto restart_prompt
 
-:end_script
+:restart_prompt
 echo.
 echo Process finished.
-pause
+echo.
+echo 1. Restart PigPicPot, 2. Exit
+set /p restart_choice="Enter your choice (1 or 2) and press Enter: "
+
+if "%restart_choice%"=="1" goto main_loop
+if "%restart_choice%"=="2" exit /b
+
+echo Invalid choice. Exiting...
+exit /b
