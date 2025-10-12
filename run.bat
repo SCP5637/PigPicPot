@@ -17,18 +17,31 @@ if "%choice1%"=="1" (
     echo Creating default config.cfg...
     (
         echo # Set to true to show a debug console on startup
-        echo debug=false
+        echo debug=false 
         echo.
         echo # Set language to zh-CN for Chinese, or en for English
         echo language=zh-CN
         echo.
         echo # Set background image path (relative to the exe^)
-        echo background_image=resource/zhu3.jpg
+        echo background_image=resource/zhu3.jpg 
         echo.
         echo # Set to true to lock window resolution
         echo lock_resolution=false
         echo width=1366
         echo height=768
+        echo.
+
+        echo # --- Mini Mode Settings ---
+        echo # Background image for the mini-mode window
+        echo mini_mode_background=resource/zhu1.png
+
+        echo # Resolution for the mini-mode window
+        echo mini_mode_width=640
+        echo mini_mode_height=480
+
+        echo # Hotkey to toggle mini-mode. Use a combination of Control, Alt, Shift, Win.
+        echo # Example: Control+Alt+B
+        echo mini_mode_hotkey=LeftCtrl+LeftAlt+B
     ) > config.cfg
 )
 
@@ -70,8 +83,8 @@ echo.
 echo 1. Restart PigPicPot, 2. Exit
 set /p restart_choice="Enter your choice (1 or 2) and press Enter: "
 
-if "%restart_choice%"=="1" goto main_loop
-if "%restart_choice%"=="2" exit /b
+if /I "%restart_choice%"=="1" goto main_loop
+if /I "%restart_choice%"=="2" exit /b
 
 echo Invalid choice. Exiting...
 exit /b

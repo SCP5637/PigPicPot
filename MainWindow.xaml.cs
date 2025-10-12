@@ -9,8 +9,9 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Media;
-using System.Windows.Media.Animation;
 using System.Windows.Media.Imaging;
+using System.Windows.Forms;
+using System.Windows.Media.Animation;
 
 namespace PigPicPot
 {
@@ -26,12 +27,16 @@ namespace PigPicPot
     {
         private readonly List<ImageItem> _allImageItems = new();
         private readonly Dictionary<string, List<L3FilterInfo>> _level3Filters = new();
+        public IEnumerable<ImageItem> AllImageItems => _allImageItems;
         private string _activeMainFilter = "";
         private string _activeSubFilter = "";
         private string _activeLevel3Filter = "";
         private string _language = "en"; // Default to English
+        private HotkeyHelper? _hotkeyHelper;
+        private MiniModeWindow? _miniModeWindow;
 
-        private class L3FilterInfo
+
+        public class L3FilterInfo
         {
             public required string ChineseName { get; set; }
             public required string EnglishName { get; set; }
@@ -42,17 +47,155 @@ namespace PigPicPot
             LoadConfiguration();
             InitializeComponent();
             Console.WriteLine("MainWindow initialized.");
+            this.Closed += MainWindow_Closed;
             LoadImages();
         }
 
-        private void Gif_MouseEnter(object sender, MouseEventArgs e)
+        private void MainWindow_Closed(object? sender, EventArgs e)
+        {
+            _hotkeyHelper?.Dispose();
+            _miniModeWindow?.Close();
+        }
+
+        private void MainWindow_Loaded(object sender, RoutedEventArgs e)
+        {
+            Console.WriteLine("MainWindow_Loaded event triggered.");
+            _hotkeyHelper = new HotkeyHelper(this);
+            try
+            {
+                string hotkeyStr = GetHotkeyFromConfig();
+                Console.WriteLine($"Using hotkey: {hotkeyStr}");
+
+                var parts = hotkeyStr.Split('+');
+                if (parts.Length < 2) throw new ArgumentException("Hotkey must include at least one modifier and a key.");
+
+                var key = (Key)Enum.Parse(typeof(Key), parts.Last(), true);
+                Console.WriteLine($"Parsed key: {key}");
+                
+                ModifierKeys modifiers = ModifierKeys.None;
+                foreach (var modStr in parts.Take(parts.Length - 1))
+                {
+                    // 处理左右修饰键的情况
+                    if (modStr.Contains("Ctrl", StringComparison.OrdinalIgnoreCase) ||
+                        modStr.Contains("LeftCtrl", StringComparison.OrdinalIgnoreCase) ||
+                        modStr.Contains("RightCtrl", StringComparison.OrdinalIgnoreCase))
+                        modifiers |= ModifierKeys.Control;
+                    if (modStr.Contains("Alt", StringComparison.OrdinalIgnoreCase) ||
+                        modStr.Contains("LeftAlt", StringComparison.OrdinalIgnoreCase) ||
+                        modStr.Contains("RightAlt", StringComparison.OrdinalIgnoreCase))
+                        modifiers |= ModifierKeys.Alt;
+                    if (modStr.Contains("Shift", StringComparison.OrdinalIgnoreCase) ||
+                        modStr.Contains("LeftShift", StringComparison.OrdinalIgnoreCase) ||
+                        modStr.Contains("RightShift", StringComparison.OrdinalIgnoreCase))
+                        modifiers |= ModifierKeys.Shift;
+                    if (modStr.Contains("Win", StringComparison.OrdinalIgnoreCase))
+                        modifiers |= ModifierKeys.Windows;
+                }
+                Console.WriteLine($"Parsed modifiers: {modifiers}");
+                
+                _hotkeyHelper.Register(modifiers, key, ToggleMiniMode);
+                Console.WriteLine($"Hotkey '{hotkeyStr}' registered successfully.");
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Failed to register hotkey: {ex.Message}");
+                System.Windows.MessageBox.Show($"Failed to register hotkey: {ex.Message}", "Error");
+            }
+        }
+
+        private string GetHotkeyFromConfig()
+        {
+            // 默认热键
+            string defaultHotkey = "LeftCtrl+LeftAlt+B";
+            
+            try
+            {
+                // 首先尝试从应用程序目录读取配置
+                string configFile = Path.Combine(GetApplicationRoot(), "config.cfg");
+                Console.WriteLine($"Reading config from: {configFile}");
+                Console.WriteLine($"Config file exists: {File.Exists(configFile)}");
+                
+                if (!File.Exists(configFile))
+                {
+                    // 如果应用程序目录没有配置文件，尝试项目目录
+                    string projectConfigFile = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "..", "..", "..", "config.cfg");
+                    projectConfigFile = Path.GetFullPath(projectConfigFile);
+                    Console.WriteLine($"Trying project config: {projectConfigFile}");
+                    Console.WriteLine($"Project config exists: {File.Exists(projectConfigFile)}");
+                    
+                    if (File.Exists(projectConfigFile))
+                    {
+                        configFile = projectConfigFile;
+                    }
+                    else
+                    {
+                        Console.WriteLine("No config file found, using default hotkey.");
+                        return defaultHotkey;
+                    }
+                }
+
+                var allLines = File.ReadAllLines(configFile);
+                Console.WriteLine($"Config file lines: {allLines.Length}");
+                
+                var config = allLines
+                    .Where(line => !string.IsNullOrWhiteSpace(line) && !line.Trim().StartsWith("#") && line.Contains('='))
+                    .ToDictionary(line => line.Split('=')[0].Trim(), line => line.Split('=')[1].Trim());
+
+                Console.WriteLine($"Config dictionary count: {config.Count}");
+                foreach (var kvp in config)
+                {
+                    Console.WriteLine($"  Config key: '{kvp.Key}', value: '{kvp.Value}'");
+                }
+
+                if (config.TryGetValue("mini_mode_hotkey", out var hotkeyStr))
+                {
+                    Console.WriteLine($"Found hotkey config: {hotkeyStr}");
+                    return hotkeyStr;
+                }
+                else
+                {
+                    Console.WriteLine("No mini_mode_hotkey found in config, using default.");
+                    return defaultHotkey;
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error reading config: {ex.Message}, using default hotkey.");
+                return defaultHotkey;
+            }
+        }
+
+        private void ToggleMiniMode()
+        {
+            Console.WriteLine("--- Hotkey pressed! ToggleMiniMode() was called. ---");
+            if (_miniModeWindow == null)
+            {
+                _miniModeWindow = new MiniModeWindow(this);
+                _miniModeWindow.Closed += (s, e) => _miniModeWindow = null;
+                _miniModeWindow.Show();
+            }
+            else
+            {
+                if (_miniModeWindow.IsVisible)
+                {
+                    _miniModeWindow.Hide();
+                }
+                else
+                {
+                    _miniModeWindow.Show();
+                    _miniModeWindow.Activate();
+                }
+            }
+        }
+
+        private void Gif_MouseEnter(object sender, System.Windows.Input.MouseEventArgs e)
         {
             if (sender is FrameworkElement element && element.DataContext is ImageItem item && item.IsAnimated)
             {
                 var carouselGrid = FindVisualChild<Grid>(element, "CarouselGrid");
                 var gifPlayer = FindVisualChild<MediaElement>(element, "GifPlayer");
 
-                if (carouselGrid?.TryFindResource("CarouselAnimation") is Storyboard sb) sb.Pause(carouselGrid);
+                if (carouselGrid?.TryFindResource("CarouselAnimation") is System.Windows.Media.Animation.Storyboard sb) sb.Pause(carouselGrid);
                 if (carouselGrid != null) carouselGrid.Visibility = Visibility.Collapsed;
 
                 if (gifPlayer != null)
@@ -64,7 +207,7 @@ namespace PigPicPot
             }
         }
 
-        private void Gif_MouseLeave(object sender, MouseEventArgs e)
+        private void Gif_MouseLeave(object sender, System.Windows.Input.MouseEventArgs e)
         {
             if (sender is FrameworkElement element && element.DataContext is ImageItem item && item.IsAnimated)
             {
@@ -78,7 +221,7 @@ namespace PigPicPot
                 }
 
                 if (carouselGrid != null) carouselGrid.Visibility = Visibility.Visible;
-                if (carouselGrid?.TryFindResource("CarouselAnimation") is Storyboard sb) sb.Resume(carouselGrid);
+                if (carouselGrid?.TryFindResource("CarouselAnimation") is System.Windows.Media.Animation.Storyboard sb) sb.Resume(carouselGrid);
             }
         }
 
@@ -104,6 +247,16 @@ background_image=resource/zhu3.jpg
 lock_resolution=false
 width=1366
 height=768
+
+# --- Mini Mode Settings ---
+# Background image for the mini-mode window
+mini_mode_background=resource/zhu1.png
+# Resolution for the mini-mode window
+mini_mode_width=640
+mini_mode_height=480
+# Hotkey to toggle mini-mode. Use a combination of Control, Alt, Shift, Win.
+# Example: Control+Alt+B
+mini_mode_hotkey=LeftCtrl+LeftAlt+B
 ";
                     File.WriteAllText(configFile, defaultConfig);
                 }
@@ -246,7 +399,7 @@ height=768
             });
 
             // 3. Asynchronously process all images
-            await Task.Run(() => ProcessFiles(filesToProcess, progress));
+            int failedFiles = await Task.Run(() => ProcessFiles(filesToProcess, progress));
 
             // 4. Discover filter groups from the loaded data
             DiscoverFilterGroups();
@@ -256,7 +409,14 @@ height=768
             MainContentPanel.Visibility = Visibility.Visible;
             SetControlsEnabled(true);
 
+            int totalAttempted = filesToProcess.Count;
+            int successfulFiles = _allImageItems.Count;
+            int dynamicImages = _allImageItems.Count(item => item.IsAnimated);
+            int staticImages = successfulFiles - dynamicImages;
+            LoadSummaryTextBlock.Text = $"本次加载了{totalAttempted}个图片，其中{successfulFiles}个成功，{failedFiles}个失败，{dynamicImages}个动态图片，{staticImages}个静态图片。";
+
             ImageListBox.ItemsSource = null; // Do not show any images on startup
+            SummaryTextBlock.Text = "请输入关键词或选择分类以开始";
             Console.WriteLine($"Finished loading. Total items in list: {_allImageItems.Count}");
         }
 
@@ -270,10 +430,11 @@ height=768
             Level3FilterPanel.IsEnabled = isEnabled;
         }
 
-        private void ProcessFiles(List<string> files, IProgress<ProgressReport> progress)
+        private int ProcessFiles(List<string> files, IProgress<ProgressReport> progress)
         {
             int filesProcessed = 0;
             int totalFiles = files.Count;
+            int failedCount = 0;
 
             foreach (var file in files)
             {
@@ -375,8 +536,10 @@ height=768
                 catch (Exception ex)
                 {
                     Console.WriteLine($"---!!! FAILED to load image {fileName}: {ex.Message}");
+                    failedCount++;
                 }
             }
+            return failedCount;
         }
 
         private static BitmapSource ConvertToBitmapSource(Image<Rgba32> image)
@@ -396,6 +559,67 @@ height=768
             }
         }
 
+        public event Action<IEnumerable<ImageItem>>? FilterChanged;
+        public string CurrentSearchText => SearchTextBox.Text;
+        public string ActiveMainFilter => _activeMainFilter;
+        public string ActiveSubFilter => _activeSubFilter;
+        public string ActiveLevel3Filter => _activeLevel3Filter;
+        public Dictionary<string, List<L3FilterInfo>> Level3Filters => _level3Filters;
+        public string CurrentLanguage => _language;
+
+        public void SetSearchText(string text)
+        {
+            SearchTextBox.Text = text;
+        }
+
+        public void SetMainFilter(string filter)
+        {
+            if (filter == "Static")
+            {
+                StaticFilterButton.IsChecked = true;
+                StaticFilterButton_Click(StaticFilterButton, new RoutedEventArgs());
+            }
+            else if (filter == "Dynamic")
+            {
+                DynamicFilterButton.IsChecked = true;
+                DynamicFilterButton_Click(DynamicFilterButton, new RoutedEventArgs());
+            }
+            else
+            {
+                StaticFilterButton.IsChecked = false;
+                DynamicFilterButton.IsChecked = false;
+                _activeMainFilter = "";
+                ApplySortAndFilter();
+            }
+        }
+
+        public void SetSubFilter(string filter)
+        {
+            var panel = _activeMainFilter == "Static" ? StaticSubFilterPanel : DynamicSubFilterPanel;
+            foreach (System.Windows.Controls.Primitives.ToggleButton btn in panel.Children)
+            {
+                bool shouldBeChecked = (btn.Name.Contains(filter, StringComparison.OrdinalIgnoreCase));
+                if (btn.IsChecked != shouldBeChecked)
+                {
+                    btn.IsChecked = shouldBeChecked;
+                    SubFilter_Click(btn, new RoutedEventArgs());
+                }
+            }
+        }
+
+        public void SetLevel3Filter(string filter)
+        {
+            foreach (System.Windows.Controls.Primitives.ToggleButton btn in Level3FilterPanel.Children)
+            {
+                bool shouldBeChecked = (btn.Tag as string) == filter;
+                if (btn.IsChecked != shouldBeChecked)
+                {
+                    btn.IsChecked = shouldBeChecked;
+                    Level3Filter_Click(btn, new RoutedEventArgs());
+                }
+            }
+        }
+
         private void ApplySortAndFilter()
         {
             // If no filters are active, show nothing.
@@ -407,6 +631,8 @@ height=768
             if (noFiltersActive)
             {
                 ImageListBox.ItemsSource = null; // Clear the view
+                SummaryTextBlock.Text = "请输入关键词或选择分类以开始";
+                FilterChanged?.Invoke(new List<ImageItem>());
                 return; // Exit early
             }
 
@@ -449,7 +675,13 @@ height=768
                 filteredList = filteredList.Where(item => item.FullFileName.Contains(searchText, StringComparison.OrdinalIgnoreCase));
             }
 
-            ImageListBox.ItemsSource = filteredList.OrderBy(item => !item.FilePath.EndsWith(".png", StringComparison.OrdinalIgnoreCase)).ThenBy(item => item.FullFileName);
+            var resultList = filteredList.OrderBy(item => !item.FilePath.EndsWith(".png", StringComparison.OrdinalIgnoreCase)).ThenBy(item => item.FullFileName).ToList();
+            ImageListBox.ItemsSource = resultList;
+
+            int totalCount = _allImageItems.Count;
+            int filteredCount = resultList.Count;
+            SummaryTextBlock.Text = $"共 {filteredCount} 个结果 / 总计 {totalCount} 个";
+            FilterChanged?.Invoke(resultList);
         }
 
         private void StaticFilterButton_Click(object sender, RoutedEventArgs e)
@@ -600,56 +832,83 @@ height=768
         }
 
         private void SearchTextBox_TextChanged(object sender, TextChangedEventArgs e) => ApplySortAndFilter();
-        private void Image_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
+        private void Image_MouseLeftButtonDown(object sender, System.Windows.Input.MouseButtonEventArgs e)
         {
             if (sender is not FrameworkElement element || element.DataContext is not ImageItem item) return;
 
-            if (item.IsAnimated)
+            try
             {
-                var border = FindVisualParent<Border>(element);
-                if (border != null && border.ContextMenu != null)
+                if (item.IsAnimated)
                 {
-                    Console.WriteLine($"GIF clicked, opening ContextMenu for {item.FullFileName}");
-                    border.ContextMenu.DataContext = item; // Pass the specific item to the menu
-                    border.ContextMenu.IsOpen = true;
-                }
-            }
-            else
-            {
-                try 
-                {
-                    Clipboard.SetImage(new BitmapImage(item.FileUri)); 
+                    ClipboardHelper.SetAnimatedGif(item.FilePath);
                     ShowNotification(Strings.Resources.NotificationCopiedImage);
                 }
-                catch (Exception ex) { MessageBox.Show($"{Strings.Resources.ErrorFailedToCopy} {ex.Message}", "Error"); }
+                else
+                {
+                    System.Windows.Clipboard.SetImage(new BitmapImage(item.FileUri));
+                    ShowNotification(Strings.Resources.NotificationCopiedImage);
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Windows.MessageBox.Show($"{Strings.Resources.ErrorFailedToCopy} {ex.Message}", "Error");
             }
         }
 
-        private void CopyStatic_Click(object sender, RoutedEventArgs e)
+        private void Image_MouseRightButtonDown(object sender, System.Windows.Input.MouseButtonEventArgs e)
         {
-            if (sender is MenuItem menuItem && menuItem.DataContext is ImageItem item)
-            {
-                try 
+            if (sender is not FrameworkElement element || element.DataContext is not ImageItem item) return;
+
+            var contextMenu = new ContextMenu();
+            var copyFileMenuItem = new MenuItem { Header = Strings.Resources.ContextMenuCopyFile };
+            copyFileMenuItem.Click += (s, args) => {
+                if (item != null)
                 {
-                    Clipboard.SetImage(new BitmapImage(item.FileUri)); 
-                    ShowNotification(Strings.Resources.NotificationCopiedStatic);
+                    try
+                    {
+                        System.Windows.Clipboard.SetFileDropList(new System.Collections.Specialized.StringCollection { item.FilePath });
+                        ShowNotification(Strings.Resources.NotificationCopiedFile);
+                    }
+                    catch (Exception ex)
+                    {
+                        System.Windows.MessageBox.Show($"{Strings.Resources.ErrorFailedToCopy} {ex.Message}", "Error");
+                    }
                 }
-                catch (Exception ex) { MessageBox.Show($"{Strings.Resources.ErrorFailedToCopy} {ex.Message}", "Error"); }
+            };
+            copyFileMenuItem.DataContext = item;
+
+            var exportFileMenuItem = new MenuItem { Header = Strings.Resources.ContextMenuExportTo };
+            exportFileMenuItem.Click += (s, args) => ExportFile_Click(s, args);
+            exportFileMenuItem.DataContext = item;
+
+            contextMenu.Items.Add(copyFileMenuItem);
+            contextMenu.Items.Add(exportFileMenuItem);
+
+            element.ContextMenu = contextMenu;
+            contextMenu.IsOpen = true;
+        }
+
+        private void ExportFile_Click(object sender, RoutedEventArgs e)
+        {
+            if (sender is not MenuItem menuItem || menuItem.DataContext is not ImageItem item) return;
+
+            var dialog = new System.Windows.Forms.FolderBrowserDialog();
+            if (dialog.ShowDialog() == System.Windows.Forms.DialogResult.OK)
+            {
+                try
+                {
+                    string destPath = Path.Combine(dialog.SelectedPath, item.FullFileName);
+                    File.Copy(item.FilePath, destPath, true);
+                    ShowNotification($"{Strings.Resources.NotificationExportedTo} {dialog.SelectedPath}");
+                }
+                catch (Exception ex)
+                {
+                    System.Windows.MessageBox.Show($"{Strings.Resources.ErrorFailedToExport} {ex.Message}", "Error");
+                }
             }
         }
 
-        private void CopyFile_Click(object sender, RoutedEventArgs e)
-        {
-            if (sender is MenuItem menuItem && menuItem.DataContext is ImageItem item)
-            {
-                try 
-                {
-                    Clipboard.SetFileDropList(new System.Collections.Specialized.StringCollection { item.FilePath }); 
-                    ShowNotification(Strings.Resources.NotificationCopiedFile);
-                }
-                catch (Exception ex) { MessageBox.Show($"{Strings.Resources.ErrorFailedToCopy} {ex.Message}", "Error"); }
-            }
-        }
+
 
         private void ShowNotification(string message)
         {
