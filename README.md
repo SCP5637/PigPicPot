@@ -61,5 +61,6 @@
 
 由Google翻译提供本项目的英文本地化与本文档的英文翻译。
 请随时告知可能存在的各种bug。我的编程水平并不优秀，我会尽我所能解决它，如果你自己能动手解决欢迎PR。
+
 English localization support & English translation of this document are provided by Google Translate.
 Please feel free to report any bugs you may find. My programming skills are not the best, but I will do my best to fix them. If you can fix them yourself, pull requests are welcome.
