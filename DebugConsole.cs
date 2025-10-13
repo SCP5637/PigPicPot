@@ -13,7 +13,7 @@ namespace PigPicPot
 
             try
             {
-                string configFile = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "config.cfg");
+                string configFile = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "usersettings.json");
                 if (File.Exists(configFile))
                 {
                     var content = File.ReadAllText(configFile);

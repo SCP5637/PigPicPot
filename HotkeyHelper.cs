@@ -45,7 +45,6 @@ namespace PigPicPot
 
         private IntPtr HwndHook(IntPtr hwnd, int msg, IntPtr wParam, IntPtr lParam, ref bool handled)
         {
-            Console.WriteLine($"HwndHook received message: 0x{msg:X}"); // Log all messages
             if (msg == WM_HOTKEY && wParam.ToInt32() == HOTKEY_ID)
             {
                 _onHotKeyPressed?.Invoke();

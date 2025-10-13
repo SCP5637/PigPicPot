@@ -1,0 +1,23 @@
+# Set to true to show a debug console on startup
+debug=false 
+
+# Set language to zh-CN for Chinese, or en for English
+language=zh-CN
+
+# Set background image path (relative to the exe)
+background_image=resource/zhu3.jpg 
+
+# Set to true to lock window resolution
+lock_resolution=false
+width=1366
+height=768
+
+# --- Mini Mode Settings ---
+# Background image for the mini-mode window
+mini_mode_background=resource/zhu1.png
+# Resolution for the mini-mode window
+mini_mode_width=640
+mini_mode_height=480
+# Hotkey to toggle mini-mode. Use a combination of Control, Alt, Shift, Win.
+# Example: Control+Alt+B
+mini_mode_hotkey=LeftCtrl+LeftAlt+B

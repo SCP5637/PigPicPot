@@ -1,170 +1,109 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
-using System.Configuration;
 using System.Linq;
+using System.Security.Cryptography;
+using System.Text.RegularExpressions;
 using System.Windows;
 using System.Windows.Controls;
-using System.Windows.Controls.Primitives;
 using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using System.Windows.Media.Animation;
-using System.Diagnostics;
+using WpfAnimatedGif;
 
 namespace PigPicPot
 {
     public partial class MiniModeWindow : Window
     {
-        private readonly MainWindow _mainWindow;
-        private static readonly string logFilePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "run_log.txt");
+        private readonly Dictionary<ImageItem, System.Windows.Threading.DispatcherTimer> _pendingRequests = new Dictionary<ImageItem, System.Windows.Threading.DispatcherTimer>();
 
-        public MiniModeWindow(MainWindow mainWindow)
+        public MiniModeWindow()
         {
-            _mainWindow = mainWindow;
             InitializeComponent();
             LoadMiniModeConfiguration();
-            SyncStateFromMainWindow();
-
-            // Subscribe to future changes
-            _mainWindow.FilterChanged += OnFilterChanged;
-            this.Closed += (s, e) => _mainWindow.FilterChanged -= OnFilterChanged;
-
-            // Wire up UI events to call MainWindow methods
-             SearchTextBox.TextChanged += (s, e) => _mainWindow.SetSearchText(SearchTextBox.Text);
-            StaticFilterButton.Click += (s, e) => _mainWindow.SetMainFilter(StaticFilterButton.IsChecked == true ? "Static" : "");
-            DynamicFilterButton.Click += (s, e) => _mainWindow.SetMainFilter(DynamicFilterButton.IsChecked == true ? "Dynamic" : "");
-            ZhuxxFilterButton.Click += (s, e) => HandleSubFilterClick(ZhuxxFilterButton, "zhuxx");
-            OtherFilterButton.Click += (s, e) => HandleSubFilterClick(OtherFilterButton, "Other");
-            AnimeFilterButton.Click += (s, e) => HandleSubFilterClick(AnimeFilterButton, "anime");
-            RealFilterButton.Click += (s, e) => HandleSubFilterClick(RealFilterButton, "real");
-
-            // 重定向控制台输出
-            var filestream = new FileStream(logFilePath, FileMode.Append, FileAccess.Write, FileShare.ReadWrite);
-            var streamWriter = new StreamWriter(filestream) { AutoFlush = true };
-            Console.SetOut(streamWriter);
-            Console.SetError(streamWriter); // Use Console.SetError
-            Trace.Listeners.Add(new TextWriterTraceListener(Console.Out)); // Use Trace.Listeners
-
-        }
-
-        private void HandleSubFilterClick(ToggleButton button, string filterName)
-        {
-            _mainWindow.SetSubFilter(button.IsChecked == true ? filterName : "");
-        }
-
-        private void OnFilterChanged(IEnumerable<ImageItem> newItems)
-        {
-            ImageListBox.ItemsSource = newItems;
-            int totalCount = _mainWindow.AllImageItems.Count();
-            int filteredCount = newItems.Count();
-            SummaryTextBlock.Text = $"共 {filteredCount} 个结果 / 总计 {totalCount} 个";
-            SyncStateFromMainWindow(); // Re-sync button states etc.
-        }
-
-        private void SyncStateFromMainWindow()
-        {
-            // Sync Search Text
-            if (SearchTextBox.Text != _mainWindow.CurrentSearchText)
-            {
-                SearchTextBox.Text = _mainWindow.CurrentSearchText;
-            }
-
-            // Sync Main Filters
-            StaticFilterButton.IsChecked = _mainWindow.ActiveMainFilter == "Static";
-            DynamicFilterButton.IsChecked = _mainWindow.ActiveMainFilter == "Dynamic";
-
-            StaticSubFilterPanel.Visibility = StaticFilterButton.IsChecked == true ? Visibility.Visible : Visibility.Collapsed;
-            DynamicSubFilterPanel.Visibility = DynamicFilterButton.IsChecked == true ? Visibility.Visible : Visibility.Collapsed;
-
-            // Sync Sub Filters
-            SyncToggleButtonState(StaticSubFilterPanel, _mainWindow.ActiveSubFilter);
-            SyncToggleButtonState(DynamicSubFilterPanel, _mainWindow.ActiveSubFilter);
-
-            // Sync Level 3 Filters
-            PopulateLevel3Filters(_mainWindow.ActiveSubFilter);
-            SyncToggleButtonState(Level3FilterPanel, _mainWindow.ActiveLevel3Filter, true);
-        }
-
-        private void SyncToggleButtonState(System.Windows.Controls.Panel panel, string activeFilter, bool useTag = false)
-        {
-            foreach (ToggleButton btn in panel.Children)
-            {
-                string? btnFilter = useTag ? btn.Tag as string : btn.Name.Replace("FilterButton", "").ToLower();
-                btn.IsChecked = btnFilter == activeFilter;
-            }
-        }
-
-        private void PopulateLevel3Filters(string category)
-        {
-            if (string.IsNullOrEmpty(category))
-            {
-                Level3ScrollViewer.Visibility = Visibility.Collapsed;
-                return;
-            }
-
-            Level3FilterPanel.Children.Clear();
             
-            bool hasSingletons = _mainWindow.AllImageItems.Any(i => i.FilePath.Contains("\\" + category + "\\") && i.IsSingleton);
+            // 创建并设置ViewModel
+            var tagProvider = new TagProvider();
+            var thumbnailService = new ThumbnailService();
+            var settingsService = new SettingsService();
+            var messenger = new Messenger();
+            
+            var viewModel = new MiniViewModel(tagProvider, thumbnailService, settingsService, messenger, Dispatcher);
+            DataContext = viewModel;
 
-            if (hasSingletons)
+            // 订阅消息
+            messenger.Register<CloseMiniWindowMessage>(this, (recipient, message) =>
             {
-                var otherButton = new ToggleButton
-                {
-                    Content = _mainWindow.CurrentLanguage == "zh-CN" ? "其他" : "Other",
-                    Tag = "_OTHER_",
-                    Margin = new Thickness(0, 0, 5, 0)
-                };
-                otherButton.Click += (s, e) => _mainWindow.SetLevel3Filter(otherButton.IsChecked == true ? "_OTHER_" : "");
-                Level3FilterPanel.Children.Add(otherButton);
-            }
-
-            if (_mainWindow.Level3Filters.TryGetValue(category, out var filters))
-            {
-                foreach (var filter in filters)
-                {
-                    var l3Button = new ToggleButton
-                    {
-                        Content = _mainWindow.CurrentLanguage == "zh-CN" ? filter.ChineseName : filter.EnglishName,
-                        Tag = filter.EnglishName,
-                        Margin = new Thickness(0, 0, 5, 0)
-                    };
-                    l3Button.Click += (s, e) => _mainWindow.SetLevel3Filter(l3Button.IsChecked == true ? filter.EnglishName : "");
-                    Level3FilterPanel.Children.Add(l3Button);
-                }
-            }
-
-            Level3ScrollViewer.Visibility = Level3FilterPanel.Children.Count > 0 ? Visibility.Visible : Visibility.Collapsed;
+                this.Close();
+            });
+            messenger.Register<ShowNotificationMessage>(this, OnNotificationReceived);
         }
-
 
         private void LoadMiniModeConfiguration()
         {
-            // This will be expanded to read from config file later.
-            // Load configuration from file
-            string bgPath = Path.Combine(GetApplicationRoot(), "resource", "zhu1.png");
-            if (File.Exists(bgPath))
+            try
             {
-                try
+                string configFile = Path.Combine(PathHelper.GetApplicationRoot(), "usersettings.json");
+                if (!File.Exists(configFile)) return;
+
+                var config = File.ReadAllLines(configFile)
+                                 .Where(line => !string.IsNullOrWhiteSpace(line) && !line.Trim().StartsWith("#") && line.Contains('='))
+                                 .ToDictionary(line => line.Split('=')[0].Trim(), line => line.Split('=')[1].Trim());
+
+                // Set window size
+                this.Width = config.TryGetValue("mini_mode_width", out var w) && int.TryParse(w, out int width) ? width : 640;
+                this.Height = config.TryGetValue("mini_mode_height", out var h) && int.TryParse(h, out int height) ? height : 480;
+
+                // Set background image
+                if (config.TryGetValue("mini_mode_background", out var bgPathValue))
                 {
-                    var bgBitmap = new BitmapImage();
-                    bgBitmap.BeginInit();
-                    bgBitmap.UriSource = new Uri(bgPath);
-                    bgBitmap.EndInit();
-                    BackgroundImageBrush.ImageSource = bgBitmap;
+                    string fullBgPath = Path.Combine(PathHelper.GetApplicationRoot(), bgPathValue.Replace('/', Path.DirectorySeparatorChar));
+                    if (File.Exists(fullBgPath))
+                    {
+                        var bgBitmap = new BitmapImage();
+                        bgBitmap.BeginInit();
+                        bgBitmap.UriSource = new Uri(fullBgPath);
+                        bgBitmap.EndInit();
+                        
+                        var backgroundBrush = FindName("BackgroundImageBrush") as ImageBrush;
+                        if (backgroundBrush != null)
+                        {
+                            backgroundBrush.ImageSource = bgBitmap;
+                        }
+
+                        // Check for secret button
+                        const string expectedHash = "a4e0018caa82f60fa9d0eed8b472430ca4b48d8fc07f5d8bac6c7b8fd4263833";
+                        string currentHash = ComputeFileHash(fullBgPath);
+                        if (Path.GetFileName(fullBgPath).Equals("zhu1.png", StringComparison.OrdinalIgnoreCase) &&
+                            bgBitmap.PixelWidth == 640 && bgBitmap.PixelHeight == 480 &&
+                            currentHash.Equals(expectedHash, StringComparison.OrdinalIgnoreCase))
+                        {
+                            var infoButton = FindName("MiniInfoButton") as System.Windows.Controls.Button;
+                            if (infoButton != null)
+                            {
+                                infoButton.Visibility = Visibility.Visible;
+                            }
+                        }
+                    }
                 }
-                catch (Exception ex)
-                {
-                    Console.WriteLine($"Failed to load mini-mode background: {ex.Message}");
-                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error loading mini-mode configuration: {ex.Message}");
+                this.Width = 640;
+                this.Height = 480;
             }
         }
 
         public class LogFilter : TraceListener
         {
+            private static readonly Regex _hwndHookRegex = new Regex(@"HwndHook received message: 0x(90|3|7C|7D)", RegexOptions.Compiled);
+
             public override void Write(string? message)
             {
-                if (!string.IsNullOrEmpty(message) && !message.Contains("HwndHook received message: 0x90"))
+                if (!string.IsNullOrEmpty(message) && !_hwndHookRegex.IsMatch(message))
                 {
                     Debug.WriteLine(message); // Pass the filtered message to the Debug listeners.
                     Console.Write(message); // Also write to the Console output.
@@ -173,7 +112,7 @@ namespace PigPicPot
 
             public override void WriteLine(string? message)
             {
-                if (!string.IsNullOrEmpty(message) && !message.Contains("HwndHook received message: 0x90"))
+                if (!string.IsNullOrEmpty(message) && !_hwndHookRegex.IsMatch(message))
                 {
                     Debug.WriteLine(message + Environment.NewLine);
                     Console.WriteLine(message);
@@ -181,49 +120,103 @@ namespace PigPicPot
             }
         }
 
-
-
-        private static string GetApplicationRoot()
+        private void MiniInfoButton_Click(object sender, RoutedEventArgs e)
         {
-            string? exePath = System.Diagnostics.Process.GetCurrentProcess().MainModule?.FileName;
-            string? exeDir = Path.GetDirectoryName(exePath);
-            return exeDir ?? AppDomain.CurrentDomain.BaseDirectory;
+            string title = "Kagetsu Tohya, Len and Magus";
+            string message = "Eating cake makes you full.\n" +
+                             "May the black cat bless your dreams.\n" +
+                             "Please download and play Tsukihime and Kagetsu Tohya.\n" +
+                             "The greatest galgame since the year 2000.";
+            System.Windows.MessageBox.Show(message, title, MessageBoxButton.OK, MessageBoxImage.Information);
+        }
+
+        private static string ComputeFileHash(string filePath)
+        {
+            using (var sha256 = System.Security.Cryptography.SHA256.Create())
+            {
+                using (var stream = File.OpenRead(filePath))
+                {
+                    var hash = sha256.ComputeHash(stream);
+                    return BitConverter.ToString(hash).Replace("-", "").ToLowerInvariant();
+                }
+            }
         }
 
         private void Gif_MouseEnter(object sender, System.Windows.Input.MouseEventArgs e)
         {
-            if (sender is FrameworkElement element && element.DataContext is ImageItem item && item.IsAnimated)
+            if (sender is FrameworkElement grid && grid.DataContext is ImageItem item && item.IsAnimated && !item.IsCorrupted)
             {
-                var carouselGrid = FindVisualChild<Grid>(element, "CarouselGrid");
-                var gifPlayer = FindVisualChild<MediaElement>(element, "GifPlayer");
-
-                if (carouselGrid?.TryFindResource("CarouselAnimation") is System.Windows.Media.Animation.Storyboard sb) sb.Pause(carouselGrid);
-                if (carouselGrid != null) carouselGrid.Visibility = Visibility.Collapsed;
-
-                if (gifPlayer != null)
+                var image = FindVisualChild<System.Windows.Controls.Image>(grid, "ThumbnailImage");
+                if (image != null)
                 {
-                    if (gifPlayer.Source == null) gifPlayer.Source = item.FileUri;
-                    gifPlayer.Visibility = Visibility.Visible;
-                    gifPlayer.Play();
+                    ImageBehavior.SetAnimatedSource(image, new BitmapImage(new Uri(item.FilePath)));
+                    var controller = ImageBehavior.GetAnimationController(image);
+                    if (controller != null)
+                    {
+                        controller.Play();
+                    }
                 }
             }
         }
 
         private void Gif_MouseLeave(object sender, System.Windows.Input.MouseEventArgs e)
         {
-            if (sender is FrameworkElement element && element.DataContext is ImageItem item && item.IsAnimated)
+            if (sender is FrameworkElement grid && grid.DataContext is ImageItem item && item.IsAnimated)
             {
-                var gifPlayer = FindVisualChild<MediaElement>(element, "GifPlayer");
-                var carouselGrid = FindVisualChild<Grid>(element, "CarouselGrid");
-
-                if (gifPlayer != null)
+                var image = FindVisualChild<System.Windows.Controls.Image>(grid, "ThumbnailImage");
+                if (image != null)
                 {
-                    gifPlayer.Stop();
-                    gifPlayer.Visibility = Visibility.Collapsed;
+                    var controller = ImageBehavior.GetAnimationController(image);
+                    if (controller != null)
+                    {
+                        controller.Pause();
+                    }
+                    // Detach the animated source to release the file and stop processing
+                    ImageBehavior.SetAnimatedSource(image, null);
+                    // Restore the thumbnail
+                    image.Source = item.ThumbnailSource;
                 }
+            }
+        }
 
-                if (carouselGrid != null) carouselGrid.Visibility = Visibility.Visible;
-                if (carouselGrid?.TryFindResource("CarouselAnimation") is System.Windows.Media.Animation.Storyboard sb) sb.Resume(carouselGrid);
+        private static T? FindVisualChild<T>(DependencyObject? parent, string childName) where T : FrameworkElement
+        {
+            if (parent == null) return null;
+            for (int i = 0; i < VisualTreeHelper.GetChildrenCount(parent); i++)
+            {
+                var child = VisualTreeHelper.GetChild(parent, i);
+                if (child is T t && t.Name == childName) return t;
+                var childOfChild = FindVisualChild<T>(child, childName);
+                if (childOfChild != null) return childOfChild;
+            }
+            return null;
+        }
+
+
+
+        private void OnNotificationReceived(object sender, ShowNotificationMessage message)
+        {
+            Dispatcher.Invoke(() =>
+            {
+                ShowNotification(message.Text);
+            });
+        }
+
+        private void ShowNotification(string message)
+        {
+            var notificationText = FindName("NotificationText") as TextBlock;
+            var notificationOverlay = FindName("NotificationOverlay") as Border;
+            
+            if (notificationText != null)
+            {
+                notificationText.Text = message;
+            }
+            
+            if (notificationOverlay != null && this.Resources["NotificationStoryboard"] is Storyboard storyboard)
+            {
+                storyboard.Completed += (s, e) => { notificationOverlay.Visibility = Visibility.Collapsed; };
+                notificationOverlay.Visibility = Visibility.Visible;
+                storyboard.Begin(notificationOverlay);
             }
         }
 
@@ -236,11 +229,11 @@ namespace PigPicPot
                 if (item.IsAnimated)
                 {
                     ClipboardHelper.SetAnimatedGif(item.FilePath);
-                     ShowNotification(PigPicPot.Strings.Resources.ImageCopiedNotification);
+                    ShowNotification(PigPicPot.Strings.Resources.ImageCopiedNotification);
                 }
                 else
                 {
-                    System.Windows.Clipboard.SetImage(new BitmapImage(item.FileUri));
+                    System.Windows.Clipboard.SetImage(new BitmapImage(new Uri(item.FilePath)));
                     ShowNotification(PigPicPot.Strings.Resources.ImageCopiedNotification);
                 }
             }
@@ -250,69 +243,37 @@ namespace PigPicPot
             }
         }
 
-        private void GifPlayer_MediaEnded(object sender, RoutedEventArgs e)
+
+
+        private void ImageItem_Loaded(object sender, RoutedEventArgs e)
         {
-            if (sender is MediaElement me)
+            if (sender is FrameworkElement element && element.DataContext is ImageItem item)
             {
-                me.Position = TimeSpan.FromMilliseconds(1);
-                me.Play();
+                if (item.ThumbnailSource != null || _pendingRequests.ContainsKey(item)) return;
+
+                var timer = new System.Windows.Threading.DispatcherTimer { Interval = TimeSpan.FromMilliseconds(200) };
+                timer.Tick += (s, args) =>
+                {
+                    timer.Stop();
+                    _pendingRequests.Remove(item);
+                    var thumbnailService = (DataContext as MiniViewModel)?.ThumbnailService;
+                    thumbnailService?.QueueThumbnailRequest(item);
+                };
+                _pendingRequests[item] = timer;
+                timer.Start();
             }
         }
 
-        private void ShowNotification(string message)
+        private void ImageItem_Unloaded(object sender, RoutedEventArgs e)
         {
-            // 使用Dispatcher确保在UI线程上执行
-            Dispatcher.Invoke(() =>
-             {
-                // 直接使用自动生成的控件字段
-                if (NotificationText != null)
-                {
-                    NotificationText.Text = message;
-                }
-
-                if (NotificationOverlay != null)
-                {
-                    // 尝试查找通知动画资源
-                    var storyboard = MainContentPanel.FindResource("NotificationStoryboard") as Storyboard;
-                    if (storyboard != null)
-                    {
-                        storyboard.Completed += (s, e) => { NotificationOverlay.Visibility = Visibility.Collapsed; };
-                        NotificationOverlay.Visibility = Visibility.Visible;
-                        storyboard.Begin(NotificationOverlay);
-                    }
-                    else
-                    {
-                        // 如果找不到动画资源，使用简单的方式显示通知
-                         NotificationOverlay.Visibility = Visibility.Visible;
-                        NotificationOverlay.Opacity = 1;
-                        
-                        // 使用Dispatcher延迟隐藏通知
-                        var timer = new System.Windows.Threading.DispatcherTimer();
-                        timer.Interval = TimeSpan.FromSeconds(2);
-                        timer.Tick += (s, e) =>
-                        {
-                            NotificationOverlay.Opacity = 0;
-                            NotificationOverlay.Visibility = Visibility.Collapsed;
-                            timer.Stop();
-                        };
-                        timer.Start();
-                    }
-                }
-            });
-        }
-
-        private static T? FindVisualChild<T>(DependencyObject? parent, string childName) where T : FrameworkElement
-        {
-             
-            if (parent == null) return null;
-            for (int i = 0; i < VisualTreeHelper.GetChildrenCount(parent); i++)
+            if (sender is FrameworkElement element && element.DataContext is ImageItem item)
             {
-                var child = VisualTreeHelper.GetChild(parent, i);
-                if (child is T t && t.Name == childName) return t;
-                var childOfChild = FindVisualChild<T>(child, childName);
-                if (childOfChild != null) return childOfChild;
+                if (_pendingRequests.TryGetValue(item, out var timer))
+                {
+                    timer.Stop();
+                    _pendingRequests.Remove(item);
+                }
             }
-            return null;
         }
     }
 }

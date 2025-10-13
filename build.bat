@@ -1,6 +1,13 @@
 @echo off
 
 echo =====================================
+echo   Cleaning project...
+echo =====================================
+echo.
+dotnet clean -c Release
+
+echo.
+echo =====================================
 echo   Building PigPicPot Single EXE...
 echo =====================================
 echo.
