@@ -1,0 +1,24 @@
+# Dependencies
+**/[Bb]in/
+**/[Oo]bj/
+
+# User-specific files
+*.user
+*.suo
+
+# Build results
+[Bb]uild/
+[Rr]elease/
+[Dd]ebug/
+
+# Rider
+.idea/
+
+# VS Code
+.vscode/
+
+# Mac
+.DS_Store
+
+# Log files
+*.log

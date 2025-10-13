@@ -1,0 +1,124 @@
+<Window x:Class="PigPicPot.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:local="clr-namespace:PigPicPot"
+        xmlns:strings="clr-namespace:PigPicPot.Strings"
+        mc:Ignorable="d"
+        Title="PigPicPot"
+        Loaded="MainWindow_Loaded">
+    <Window.Resources>
+        <Storyboard x:Key="NotificationStoryboard">
+            <DoubleAnimation Storyboard.TargetProperty="Opacity" From="0" To="1" Duration="0:0:0.2"/>
+            <DoubleAnimation Storyboard.TargetProperty="Opacity" From="1" To="0" Duration="0:0:0.5" BeginTime="0:0:2"/>
+        </Storyboard>
+    </Window.Resources>
+    <Window.Background>
+        <ImageBrush x:Name="BackgroundImageBrush" Stretch="UniformToFill"/>
+    </Window.Background>
+    <Grid>
+        <!-- Main Content -->
+        <DockPanel x:Name="MainContentPanel" Margin="20" Visibility="Collapsed">
+            <TextBox x:Name="SearchTextBox" DockPanel.Dock="Top" Margin="0,0,0,10" TextChanged="SearchTextBox_TextChanged" FontSize="14" Padding="5"/>
+            <TextBlock x:Name="LoadSummaryTextBlock" DockPanel.Dock="Top" Margin="0,0,0,5" FontSize="12" HorizontalAlignment="Center"/>
+            <TextBlock x:Name="SummaryTextBlock" DockPanel.Dock="Top" Margin="0,0,0,5" FontSize="12" HorizontalAlignment="Center"/>
+
+            <!-- Category Filters -->
+            <StackPanel DockPanel.Dock="Top" Margin="0,0,0,5">
+                <StackPanel Orientation="Horizontal">
+                    <ToggleButton x:Name="StaticFilterButton" Content="{x:Static strings:Resources.StaticFilterButtonText}" Margin="0,0,5,0" Click="StaticFilterButton_Click"/>
+                    <ToggleButton x:Name="DynamicFilterButton" Content="{x:Static strings:Resources.DynamicFilterButtonText}" Margin="5,0,5,0" Click="DynamicFilterButton_Click"/>
+                </StackPanel>
+                <StackPanel x:Name="StaticSubFilterPanel" Orientation="Horizontal" Margin="0,5,0,0" Visibility="Collapsed">
+                    <ToggleButton x:Name="ZhuxxFilterButton" Content="{x:Static strings:Resources.ZhuxxFilterButtonText}" Margin="0,0,5,0" Click="SubFilter_Click"/>
+                    <ToggleButton x:Name="OtherFilterButton" Content="{x:Static strings:Resources.OtherFilterButtonText}" Margin="5,0,5,0" Click="SubFilter_Click"/>
+                </StackPanel>
+                <StackPanel x:Name="DynamicSubFilterPanel" Orientation="Horizontal" Margin="0,5,0,0" Visibility="Collapsed">
+                    <ToggleButton x:Name="AnimeFilterButton" Content="动画" Margin="0,0,5,0" Click="SubFilter_Click"/>
+                    <ToggleButton x:Name="RealFilterButton" Content="现实" Margin="5,0,5,0" Click="SubFilter_Click"/>
+                </StackPanel>
+
+                <!-- Level 3 Filters will be dynamically added here -->
+                <WrapPanel x:Name="Level3FilterPanel" Margin="0,5,0,0" Visibility="Collapsed"/>
+
+            </StackPanel>
+
+
+            <ListBox x:Name="ImageListBox" ScrollViewer.HorizontalScrollBarVisibility="Disabled" Background="#80FFFFFF">
+                <ListBox.ItemsPanel>
+                    <ItemsPanelTemplate>
+                        <WrapPanel/>
+                    </ItemsPanelTemplate>
+                </ListBox.ItemsPanel>
+                <ListBox.ItemTemplate>
+                    <DataTemplate>
+                        <DataTemplate.Resources>
+                            <Storyboard x:Key="CarouselAnimation" RepeatBehavior="Forever">
+                                <ObjectAnimationUsingKeyFrames Storyboard.TargetName="PreviewStart" Storyboard.TargetProperty="Visibility">
+                                    <DiscreteObjectKeyFrame KeyTime="0:0:0" Value="{x:Static Visibility.Visible}"/>
+                                    <DiscreteObjectKeyFrame KeyTime="0:0:0.7" Value="{x:Static Visibility.Collapsed}"/>
+                                </ObjectAnimationUsingKeyFrames>
+                                <ObjectAnimationUsingKeyFrames Storyboard.TargetName="PreviewMiddle" Storyboard.TargetProperty="Visibility">
+                                    <DiscreteObjectKeyFrame KeyTime="0:0:0" Value="{x:Static Visibility.Collapsed}"/>
+                                    <DiscreteObjectKeyFrame KeyTime="0:0:0.7" Value="{x:Static Visibility.Visible}"/>
+                                    <DiscreteObjectKeyFrame KeyTime="0:0:1.4" Value="{x:Static Visibility.Collapsed}"/>
+                                </ObjectAnimationUsingKeyFrames>
+                                <ObjectAnimationUsingKeyFrames Storyboard.TargetName="PreviewEnd" Storyboard.TargetProperty="Visibility">
+                                    <DiscreteObjectKeyFrame KeyTime="0:0:0" Value="{x:Static Visibility.Collapsed}"/>
+                                    <DiscreteObjectKeyFrame KeyTime="0:0:1.4" Value="{x:Static Visibility.Visible}"/>
+                                    <DiscreteObjectKeyFrame KeyTime="0:0:2.1" Value="{x:Static Visibility.Collapsed}"/>
+                                </ObjectAnimationUsingKeyFrames>
+                            </Storyboard>
+                        </DataTemplate.Resources>
+                        <Border BorderBrush="#A0A0A0" BorderThickness="1" Margin="5" Padding="5" CornerRadius="3" Background="White">
+                            <Grid Width="150">
+                                <StackPanel>
+                                    <Grid x:Name="PreviewAndPlayerGrid" Width="150" Height="120" MouseEnter="Gif_MouseEnter" MouseLeave="Gif_MouseLeave" MouseRightButtonDown="Image_MouseRightButtonDown">
+                                        <!-- 3-Frame Preview Carousel -->
+                                        <Grid x:Name="CarouselGrid">
+                                            <Grid.Triggers>
+                                                <EventTrigger RoutedEvent="Grid.Loaded">
+                                                    <BeginStoryboard Storyboard="{StaticResource CarouselAnimation}"/>
+                                                </EventTrigger>
+                                            </Grid.Triggers>
+                                            <Image x:Name="PreviewStart" Source="{Binding StartFrame}" Stretch="Uniform" Cursor="Hand" MouseLeftButtonDown="Image_MouseLeftButtonDown" Visibility="Collapsed"/>
+                                            <Image x:Name="PreviewMiddle" Source="{Binding MiddleFrame}" Stretch="Uniform" Cursor="Hand" MouseLeftButtonDown="Image_MouseLeftButtonDown" Visibility="Collapsed"/>
+                                            <Image x:Name="PreviewEnd" Source="{Binding EndFrame}" Stretch="Uniform" Cursor="Hand" MouseLeftButtonDown="Image_MouseLeftButtonDown" Visibility="Collapsed"/>
+                                        </Grid>
+                                        <!-- Full GIF Player -->
+                                        <MediaElement x:Name="GifPlayer" Stretch="Uniform" LoadedBehavior="Manual" UnloadedBehavior="Stop" Visibility="Collapsed" MediaEnded="GifPlayer_MediaEnded" MouseLeftButtonDown="Image_MouseLeftButtonDown"/>
+                                    </Grid>
+                                    <TextBlock Text="{Binding DisplayFileName}" TextWrapping="Wrap" TextAlignment="Center" Margin="0,5,0,0" Height="40"/>
+                                </StackPanel>
+                            </Grid>
+                        </Border>
+                    </DataTemplate>
+                </ListBox.ItemTemplate>
+            </ListBox>
+        </DockPanel>
+
+        <!-- Loading Overlay -->
+        <Grid x:Name="LoadingOverlay" Background="#80000000" Visibility="Visible">
+            <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center">
+                <TextBlock x:Name="LoadingProgressText" Text="{x:Static strings:Resources.LoadingText}" Foreground="White" FontSize="20" Margin="0,0,0,10"/>
+                <ProgressBar x:Name="LoadingProgressBar" IsIndeterminate="False" Width="300" Height="20" Foreground="Gray"/>
+            </StackPanel>
+        </Grid>
+
+        <!-- Notification Overlay -->
+        <Border x:Name="NotificationOverlay" Background="#333" CornerRadius="10" Padding="15,10" HorizontalAlignment="Center" VerticalAlignment="Top" Margin="0,30,0,0" Opacity="0" Visibility="Collapsed">
+            <TextBlock x:Name="NotificationText" Text="Copied to clipboard!" Foreground="White" FontSize="14"/>
+        </Border>
+
+        <!-- Info Button -->
+        <Button x:Name="InfoButton" HorizontalAlignment="Left" VerticalAlignment="Bottom" Margin="10" Width="15" Height="15" Opacity="0.7" Visibility="Collapsed" Click="InfoButton_Click">
+            <TextBlock Text="ⓘ" FontSize="11" FontWeight="Bold" Foreground="#4682B4"/>
+        </Button>
+
+        <!-- Toggle UI Button -->
+        <Button x:Name="ToggleUIVisibilityButton" HorizontalAlignment="Right" VerticalAlignment="Bottom" Margin="10" Width="15" Height="15" Opacity="0.7" Click="ToggleUIVisibilityButton_Click">
+            <TextBlock Text="Ⓑ" FontSize="11" FontWeight="Bold" Foreground="#4682B4"/>
+        </Button>
+    </Grid>
+</Window>

@@ -1,0 +1,24 @@
+<Window x:Class="PigPicPot.InfoWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Background image information"
+        Width="400" Height="200"
+        WindowStartupLocation="CenterOwner"
+        ResizeMode="NoResize"
+        SizeToContent="WidthAndHeight">
+    <StackPanel Margin="15">
+        <TextBlock Text="レン誕生日2025" Margin="0,0,0,5"/>
+        <TextBlock Text="PID:134904255" Margin="0,0,0,5"/>
+        <TextBlock Margin="0,0,0,5">
+            <Hyperlink NavigateUri="https://www.pixiv.net/artworks/134904255" RequestNavigate="Hyperlink_RequestNavigate">
+                https://www.pixiv.net/artworks/134904255
+            </Hyperlink>
+        </TextBlock>
+        <TextBlock Text="Author: 風@お仕事募集中" Margin="0,10,0,5"/>
+        <TextBlock>
+            <Hyperlink NavigateUri="https://www.pixiv.net/users/5236911" RequestNavigate="Hyperlink_RequestNavigate">
+                https://www.pixiv.net/users/5236911
+            </Hyperlink>
+        </TextBlock>
+    </StackPanel>
+</Window>
