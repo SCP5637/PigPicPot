@@ -2,7 +2,7 @@ name: Build and Release PigPicPot
 
 on:
   push:
-    branches: [ main ]
+    branches: [ Dev-JodieRuth ]
   workflow_dispatch:  # 允许手动触发
 
 env:
