@@ -11,7 +11,7 @@ rem Delete the old log file if it exists
 del run_log.txt 2>nul
 
 rem Run the program and redirect all output (stdout and stderr) to the log file
-dotnet run > run_log.txt 2>&1
+dotnet run --project src/main/PigPicPot.csproj > run_log.txt 2>&1
 
 echo.
 echo Process finished. Log has been written to run_log.txt.

@@ -1,0 +1,16 @@
+<Window x:Class="PigPicPot.Core.MiniInfoWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Kagetsu Tohya, Len and Magus"
+        Width="400" Height="200"
+        WindowStartupLocation="CenterOwner"
+        ResizeMode="NoResize"
+        SizeToContent="WidthAndHeight">
+    <StackPanel Margin="15">
+        <TextBlock Text="Eating cake makes you full." Margin="0,0,0,5"/>
+        <TextBlock Text="May the black cat bless your dreams." Margin="0,0,0,5"/>
+        <TextBlock Text="Please download and play Tsukihime and Kagetsu Tohya." Margin="0,0,0,5"/>
+        <TextBlock Text="The greatest galgame since the year 2000." Margin="0,0,0,5"/>
+        <TextBlock Text="Also,please support Tsukihime -A piece of blue glass moon- ."/>
+    </StackPanel>
+</Window>
