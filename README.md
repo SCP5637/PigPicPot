@@ -15,6 +15,7 @@
 *   **一键复制**: 左键点击任意图片，即可将其（包括动态GIF）复制到剪贴板。
 *   **迷你模式**: 按下热键 `LeftCtrl+LeftAlt+B` 可以呼出一个永远置顶的迷你窗口，它包含了主窗口的大部分功能，方便您在处理其他事务时快速取用图片。迷你窗口会在复制任何一张图片之后自行关闭，点击左上角的图钉图标可以固定以让它不再自动关闭。
 *   **GIF 修复与优化**: 内置了强大的`ImageSharp`图像处理库。在首次加载时，程序会自动检测并尝试修复所有GIF文件。对于轻微损坏或格式不规范的GIF，程序会将其重新编码为标准格式并替换原文件；对于严重损坏的文件，则会安全地跳过，从而根除了因坏图导致程序崩溃的问题。
+*   **收藏夹功能**: 可以创建和管理多个收藏夹，将喜欢的图片添加到不同的收藏夹中，方便快速访问。
 *   **高度可配置**: 您可以通过修改程序目录下的`usersettings.json`文件来自定义主窗口与迷你窗口的背景图、窗口大小、以及迷你模式的快捷键。
 
 ### 如何使用
@@ -23,6 +24,13 @@
 2.  运行`run.bat`启动程序。程序会自动为您生成图片标签。
 3.  点击各级标签进行筛选，在右侧找到您想要的图片。
 4.  左键点击图片即可复制。
+5.  可以使用收藏夹功能保存喜欢的图片，通过右键菜单添加图片到收藏夹。
+6.  按下 `LeftCtrl+LeftAlt+B` 可以打开迷你模式窗口。
+
+### 构建和发布
+
+1.  运行 `build.bat` 脚本以构建发布版本。
+2.  构建完成后，发布文件将位于 `Release` 文件夹中。
 
 **注意**: 由于程序会在首次启动时加载并处理所有GIF文件，如果您的GIF图片非常多，在首次启动时可能会需要等待一小会儿才能看到所有GIF的缩略图，这是正常现象。
 
@@ -39,6 +47,7 @@
 *   **One-Click Copy**: Left-click on any image (including animated GIFs) to copy it directly to your clipboard.
 *   **Mini-Mode**: Press the hotkey `LeftCtrl+LeftAlt+B` to summon an always-on-top mini-window that includes most of the main window's functionality, allowing for quick access to images while working on other tasks. The mini-window will automatically close after copying an image. Click the pin icon in the top-left corner to keep it open.
 *   **GIF Repair & Optimization**: Built with the powerful `ImageSharp` library. On first launch, the application automatically detects and attempts to repair all GIF files. It re-encodes non-standard or slightly corrupted GIFs into a standard format (overwriting the original file) and safely skips severely damaged ones, completely eliminating crashes caused by bad images.
+*   **Favorites**: Create and manage multiple favorites folders to save your preferred images for quick access.
 *   **Highly Configurable**: You can customize the background images, window sizes for both the main and mini-windows, and the mini-mode hotkey by editing the `usersettings.json` file in the program's directory.
 
 ### How to Use
@@ -47,6 +56,13 @@
 2.  Run `run.bat` to start the application. The program will automatically generate tags for your images.
 3.  Click on the tags at various levels to filter and find the image you want on the right.
 4.  Left-click an image to copy it.
+5.  Use the favorites feature to save your preferred images by right-clicking on images and adding them to favorites.
+6.  Press `LeftCtrl+LeftAlt+B` to open the mini-mode window.
+
+### Building and Deployment
+
+1.  Run the `build.bat` script to build the release version.
+2.  After building, the release files will be located in the `Release` folder.
 
 **Note**: Because the program processes and potentially repairs all GIF files on its first run, you may experience a short delay before all GIF thumbnails appear if you have a very large number of them. This is normal behavior.
 
