@@ -85,9 +85,7 @@ namespace PigPicPot.Core
                     var button = window.FindName(feature.ButtonName) as System.Windows.Controls.Button;
                     if (button != null)
                     {
-                        // First, remove any existing handlers to prevent duplicates
                         button.Click -= feature.ClickHandler;
-                        // Then, add the new handler
                         button.Click += feature.ClickHandler;
                         
                         button.Visibility = Visibility.Visible;

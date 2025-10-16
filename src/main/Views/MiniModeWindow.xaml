@@ -39,12 +39,15 @@
             </Storyboard>
         </Grid.Resources>
         <DockPanel x:Name="MainContentPanel" Margin="10">
-            <ToggleButton Style="{StaticResource PinButtonStyle}" IsChecked="{Binding IsPinned, Mode=TwoWay}"/>
-            <TextBox x:Name="SearchTextBox" DockPanel.Dock="Top" Margin="0,0,0,5" Text="{Binding SearchText, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" FontSize="12" Padding="3"/>
+            <StackPanel DockPanel.Dock="Top" Orientation="Horizontal">
+                <ToggleButton x:Name="FavoritesToggleButton" Content="★" FontSize="16" Margin="0,0,5,0" VerticalAlignment="Center" Click="FavoritesToggleButton_Click"/>
+                <TextBox x:Name="SearchTextBox" Text="{Binding SearchText, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" FontSize="14" Padding="5" Width="300"/>
+                <ToggleButton Style="{StaticResource PinButtonStyle}" IsChecked="{Binding IsPinned, Mode=TwoWay}"/>
+            </StackPanel>
             <TextBlock x:Name="SummaryTextBlock" DockPanel.Dock="Top" Margin="0,0,0,5" FontSize="10" HorizontalAlignment="Center"/>
 
             <!-- Category Filters -->
-            <StackPanel DockPanel.Dock="Top" Margin="0,0,0,5">
+            <StackPanel x:Name="TagsPanel" DockPanel.Dock="Top" Margin="0,0,0,5">
                 <ItemsControl ItemsSource="{Binding Level1Tags}">
                     <ItemsControl.ItemTemplate>
                         <DataTemplate>
@@ -82,6 +85,22 @@
                     </ItemsControl.ItemsPanel>
                 </ItemsControl>
             </StackPanel>
+
+            <!-- Favorites Tags -->
+            <WrapPanel x:Name="FavoritesTagsPanel" DockPanel.Dock="Top" Margin="0,0,0,5" Visibility="Collapsed">
+                <ItemsControl x:Name="FavoritesTagsItemsControl" ItemsSource="{Binding FavoriteTags}">
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate>
+                            <ToggleButton Content="{Binding Name}" IsChecked="{Binding IsSelected, Mode=TwoWay}" Margin="5,0,5,0" Click="FavoriteTag_Click"/>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                    <ItemsControl.ItemsPanel>
+                        <ItemsPanelTemplate>
+                            <WrapPanel/>
+                        </ItemsPanelTemplate>
+                    </ItemsControl.ItemsPanel>
+                </ItemsControl>
+            </WrapPanel>
 
             <ListBox x:Name="ImageListBox" ScrollViewer.HorizontalScrollBarVisibility="Disabled" Background="#80FFFFFF" ItemsSource="{Binding FilteredItems}">
                 <ListBox.ItemsPanel>

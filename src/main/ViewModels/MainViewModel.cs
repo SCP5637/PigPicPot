@@ -12,6 +12,10 @@ using PigPicPot.Helpers;
 
 namespace PigPicPot.ViewModels
 {
+    /// <summary>
+    /// 主窗口视图模型，负责管理主界面的数据和逻辑
+    /// Main window view model, responsible for managing data and logic of the main interface
+    /// </summary>
     public class MainViewModel : INotifyPropertyChanged
     {
         private readonly ITagProvider _tagProvider;
@@ -20,14 +24,54 @@ namespace PigPicPot.ViewModels
         private readonly Dispatcher _dispatcher;
 
         private ReadOnlyCollection<ImageItem> _allImageItems = new ReadOnlyCollection<ImageItem>(new List<ImageItem>());
+        /// <summary>
+        /// 所有图片项的只读集合
+        /// Read-only collection of all image items
+        /// </summary>
+        public ReadOnlyCollection<ImageItem> AllImages => _allImageItems;
         private string _searchText = "";
         private readonly List<TagNode> _selectedTags = new List<TagNode>();
 
+        /// <summary>
+        /// 一级标签集合
+        /// Level 1 tags collection
+        /// </summary>
         public ObservableCollection<TagNode> Level1Tags { get; } = new ObservableCollection<TagNode>();
+        
+        /// <summary>
+        /// 二级标签集合
+        /// Level 2 tags collection
+        /// </summary>
         public ObservableCollection<TagNode> Level2Tags { get; } = new ObservableCollection<TagNode>();
+        
+        /// <summary>
+        /// 三级标签集合
+        /// Level 3 tags collection
+        /// </summary>
         public ObservableCollection<TagNode> Level3Tags { get; } = new ObservableCollection<TagNode>();
+        
+        /// <summary>
+        /// 收藏标签集合
+        /// Favorite tags collection
+        /// </summary>
+        public ObservableCollection<Favorite> FavoriteTags { get; set; } = new ObservableCollection<Favorite>();
+        
+        /// <summary>
+        /// 筛选后的图片项集合
+        /// Filtered image items collection
+        /// </summary>
         public ObservableCollection<ImageItem> FilteredItems { get; } = new ObservableCollection<ImageItem>();
 
+        /// <summary>
+        /// 当前激活的收藏筛选器
+        /// Currently active favorite filter
+        /// </summary>
+        public Favorite? ActiveFavoriteFilter { get; private set; }
+
+        /// <summary>
+        /// 搜索文本属性
+        /// Search text property
+        /// </summary>
         public string SearchText
         {
             get => _searchText;
@@ -40,22 +84,80 @@ namespace PigPicPot.ViewModels
         }
 
         // Statistics properties
+        /// <summary>
+        /// 总图片数
+        /// Total number of images
+        /// </summary>
         public int TotalImages { get; private set; }
+        
+        /// <summary>
+        /// 成功加载的图片数
+        /// Number of successfully loaded images
+        /// </summary>
         public int SuccessfulImages { get; private set; }
+        
+        /// <summary>
+        /// 加载失败的图片数
+        /// Number of failed images
+        /// </summary>
         public int FailedImages { get; private set; }
+        
+        /// <summary>
+        /// 动态图片数
+        /// Number of animated images
+        /// </summary>
         public int AnimatedImages { get; private set; }
+        
+        /// <summary>
+        /// 静态图片数
+        /// Number of static images
+        /// </summary>
         public int StaticImages { get; private set; }
 
+        /// <summary>
+        /// 总项目数
+        /// Total items count
+        /// </summary>
         public int TotalItemsCount => _allImageItems?.Count ?? 0;
+        
+        /// <summary>
+        /// 筛选后的项目数
+        /// Filtered items count
+        /// </summary>
         public int FilteredItemsCount => FilteredItems.Count;
 
+        /// <summary>
+        /// 摘要文本
+        /// Summary text
+        /// </summary>
         public string SummaryText => $"当前页面: {FilteredItemsCount} 张图片 / 总共: {TotalItemsCount} 张图片";
+        
+        /// <summary>
+        /// 加载摘要文本
+        /// Load summary text
+        /// </summary>
         public string LoadSummaryText => $"本次启动加载了 {TotalImages} 张图片，成功 {SuccessfulImages} 张，失败 {FailedImages} 张。其中动态图片 {AnimatedImages} 张，静态图片 {StaticImages} 张。";
 
+        /// <summary>
+        /// 选择标签命令
+        /// Select tag command
+        /// </summary>
         public ICommand SelectTagCommand { get; }
+        
+        /// <summary>
+        /// 复制图片命令
+        /// Copy image command
+        /// </summary>
         public ICommand CopyImageCommand { get; }
 
-        // Private constructor for the factory method
+        /// <summary>
+        /// 私有构造函数，初始化视图模型
+        /// Private constructor to initialize the view model
+        /// </summary>
+        /// <param name="tagProvider">标签提供者</param>
+        /// <param name="thumbnailService">缩略图服务</param>
+        /// <param name="messenger">消息传递器</param>
+        /// <param name="dispatcher">调度器</param>
         private MainViewModel(ITagProvider tagProvider, IThumbnailService thumbnailService, IMessenger messenger, Dispatcher? dispatcher = null)
         {
             _tagProvider = tagProvider;
@@ -67,7 +169,15 @@ namespace PigPicPot.ViewModels
             CopyImageCommand = new RelayCommand<ImageItem>(CopyImage);
         }
 
-        // Public factory method for async initialization
+        /// <summary>
+        /// 异步创建并初始化MainViewModel实例
+        /// Asynchronously create and initialize MainViewModel instance
+        /// </summary>
+        /// <param name="tagProvider">标签提供者</param>
+        /// <param name="thumbnailService">缩略图服务</param>
+        /// <param name="messenger">消息传递器</param>
+        /// <param name="dispatcher">调度器</param>
+        /// <returns>初始化完成的MainViewModel实例</returns>
         public static async Task<MainViewModel> CreateAsync(ITagProvider tagProvider, IThumbnailService thumbnailService, IMessenger messenger, Dispatcher dispatcher)
         {
             var viewModel = new MainViewModel(tagProvider, thumbnailService, messenger, dispatcher);
@@ -75,6 +185,10 @@ namespace PigPicPot.ViewModels
             return viewModel;
         }
 
+        /// <summary>
+        /// 异步初始化方法
+        /// Asynchronous initialization method
+        /// </summary>
         private async Task InitializeAsync()
         {
             await _tagProvider.LoadAsync();
@@ -100,10 +214,13 @@ namespace PigPicPot.ViewModels
                 _messenger.Send(new ShowNotificationMessage($"Loaded {TotalItemsCount} images"));
             });
 
-            // Start initial background loading of all thumbnails
             _thumbnailService.Prioritize(System.Linq.Enumerable.Empty<ImageItem>(), _allImageItems);
         }
 
+        /// <summary>
+        /// 计算统计数据
+        /// Calculate statistics data
+        /// </summary>
         private void CalculateStatistics()
         {
             if (_allImageItems == null) return;
@@ -116,13 +233,25 @@ namespace PigPicPot.ViewModels
             OnPropertyChanged(nameof(LoadSummaryText));
         }
 
+        /// <summary>
+        /// 清除标签选择
+        /// Clear tag selections
+        /// </summary>
+        public void ClearTagSelections()
+        {
+            ClearAllTagSelections(Level1Tags);
+            _selectedTags.Clear();
+            UpdateDisplayedTags();
+        }
+
+        /// <summary>
+        /// 选择标签
+        /// Select tag
+        /// </summary>
+        /// <param name="tag">要选择的标签节点</param>
         private void SelectTag(TagNode tag)
         {
-            var newSelection = tag;
-            if (tag.IsSelected)
-            {
-                newSelection = tag.Parent;
-            }
+            var newSelection = tag.IsSelected ? tag.Parent : tag;
 
             ClearAllTagSelections(Level1Tags);
             _selectedTags.Clear();
@@ -177,15 +306,34 @@ namespace PigPicPot.ViewModels
             }
         }
 
-        private void ApplyFilters()
+        public void ApplyFilters(Favorite? favorite = null)
         {
+            ActiveFavoriteFilter = favorite;
             if (_allImageItems == null) return;
 
-            IEnumerable<ImageItem> query = _allImageItems;
+            IEnumerable<ImageItem> query;
 
-            if (_selectedTags.Count > 0)
+            if (favorite != null)
             {
-                query = query.Where(item => _selectedTags.All(tag => IsItemInTag(item, tag)));
+                var favoriteImagePaths = new HashSet<string>(favorite.Images.Select(img => img.FilePath));
+                query = _allImageItems.Where(item => favoriteImagePaths.Contains(item.FilePath));
+            }
+            else
+            {
+                query = _allImageItems;
+
+                if (_selectedTags.Count > 0)
+                {
+                    query = query.Where(item => _selectedTags.All(tag => IsItemInTag(item, tag)));
+                }
+
+                if (string.IsNullOrWhiteSpace(SearchText))
+                {
+                    if (_selectedTags.Count == 0)
+                    {
+                        query = Enumerable.Empty<ImageItem>();
+                    }
+                }
             }
 
             if (!string.IsNullOrWhiteSpace(SearchText))
@@ -198,11 +346,6 @@ namespace PigPicPot.ViewModels
                         (item.Tags != null && item.Tags.Any(tag => tag != null && tag.IndexOf(term, StringComparison.OrdinalIgnoreCase) >= 0))
                     )
                 );
-            }
-
-            if (_selectedTags.Count == 0 && string.IsNullOrWhiteSpace(SearchText))
-            {
-                query = Enumerable.Empty<ImageItem>();
             }
 
             var result = query.ToList();

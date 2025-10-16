@@ -1,6 +1,14 @@
 @echo off
 setlocal
 
+:: Check for admin rights
+net session >nul 2>&1
+if %errorLevel% NEQ 0 (
+    echo Requesting administrative privileges...
+    powershell -Command "Start-Process '%~f0' -Verb RunAs"
+    exit /b
+)
+
 echo =====================================
 echo   Step 1: Cleaning previous outputs...
 echo =====================================

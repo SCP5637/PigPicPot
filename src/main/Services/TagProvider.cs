@@ -5,31 +5,59 @@ using System.Threading.Tasks;
 using System.Collections.Generic;
 using PigPicPot.Models;
 using PigPicPot.Helpers;
+using System.Reflection;
+using System.Diagnostics;
 
 namespace PigPicPot.Services
 {
+    /// <summary>
+    /// 标签提供者，负责构建和管理标签树结构
+    /// Tag provider, responsible for building and managing tag tree structure
+    /// </summary>
     public class TagProvider : ITagProvider
     {
         private readonly IImageDataProvider _imageDataProvider;
+        
+        /// <summary>
+        /// 根标签集合
+        /// Root tags collection
+        /// </summary>
         public ReadOnlyCollection<TagNode> RootTags { get; private set; } = new ReadOnlyCollection<TagNode>(new List<TagNode>());
+        
+        /// <summary>
+        /// 所有图片项集合
+        /// All image items collection
+        /// </summary>
         public ReadOnlyCollection<ImageItem> AllImageItems => _imageDataProvider.AllImageItems;
 
+        /// <summary>
+        /// 构造函数，初始化图像数据提供者
+        /// Constructor, initialize image data provider
+        /// </summary>
         public TagProvider()
         {
-            // In a real DI scenario, this would be injected.
-            // For now, we still create it here.
             _imageDataProvider = new ImageDataProvider();
         }
 
+        /// <summary>
+        /// 异步加载标签和图像数据
+        /// Asynchronously load tags and image data
+        /// </summary>
         public async Task LoadAsync()
         {
             await Task.Run(async () =>
             {
-                // 1. Build the complete directory tree and find leaf directories.
                 var rootTags = new List<TagNode>();
                 var leafDirectories = new List<string>();
-                var resourcePath = Path.Combine(PathHelper.GetApplicationRoot(), "resource");
+                
+                string exePath = Process.GetCurrentProcess().MainModule?.FileName 
+                    ?? Assembly.GetEntryAssembly()?.Location 
+                    ?? AppDomain.CurrentDomain.BaseDirectory;
+                string appDir = Path.GetDirectoryName(exePath) ?? AppDomain.CurrentDomain.BaseDirectory;
+                var resourcePath = Path.Combine(appDir, "resource");
 
+                // 构建标签树结构
+                // Build tag tree structure
                 if (Directory.Exists(resourcePath))
                 {
                     var topLevelDirs = Directory.GetDirectories(resourcePath);
@@ -44,11 +72,13 @@ namespace PigPicPot.Services
                 }
                 this.RootTags = new ReadOnlyCollection<TagNode>(rootTags);
 
-                // 2. Load images ONLY from the leaf directories.
+                // 加载图像数据
+                // Load image data
                 await _imageDataProvider.LoadAsync(leafDirectories);
                 var allImageItems = _imageDataProvider.AllImageItems;
 
-                // 3. Add dynamic filename-based tags to the leaf nodes in the tree.
+                // 添加动态标签到叶子节点
+                // Add dynamic tags to leaf nodes
                 AddDynamicTagsToLeaves(this.RootTags, allImageItems);
             });
         }
@@ -74,12 +104,10 @@ namespace PigPicPot.Services
 
             if (subDirs.Length == 0)
             {
-                // This is a leaf directory, add its path to the list for image scanning.
                 leafDirectories.Add(directoryPath);
             }
             else
             {
-                // This is not a leaf, so recurse into its children.
                 foreach (var subDir in subDirs)
                 {
                     var childNode = BuildTagTree(subDir, level + 1, leafDirectories);
@@ -98,18 +126,13 @@ namespace PigPicPot.Services
         {
             foreach (var tag in tags)
             {
-                // Recurse to the deepest nodes first
                 if (tag.Children.Any())
                 {
                     AddDynamicTagsToLeaves(tag.Children, allImageItems);
                 }
 
-                // Check if the current tag is a leaf in the *directory* structure.
-                // A tag is a directory leaf if it originally had no children before dynamic tags were added.
-                // We can infer this by checking if its children are all series tags (or if it has no children yet).
                 if (!tag.Children.Any() || tag.Children.All(c => c.IsSeriesTag))
                 {
-                    // Reconstruct the full path for this tag.
                     var pathParts = new Stack<string>();
                     var current = tag;
                     while (current != null)
@@ -117,23 +140,26 @@ namespace PigPicPot.Services
                         pathParts.Push(current.DirectoryName);
                         current = current.Parent;
                     }
-                    // This creates a relative path from the 'resource' folder
                     var relativeTagPath = Path.Combine(pathParts.ToArray());
-                    var absoluteTagPath = Path.Combine(System.AppDomain.CurrentDomain.BaseDirectory, "resource", relativeTagPath);
+                    
+                    string exePath = Process.GetCurrentProcess().MainModule?.FileName 
+                        ?? Assembly.GetEntryAssembly()?.Location 
+                        ?? AppDomain.CurrentDomain.BaseDirectory;
+                    string appDir = Path.GetDirectoryName(exePath) ?? AppDomain.CurrentDomain.BaseDirectory;
+                    var absoluteTagPath = Path.Combine(appDir, "resource", relativeTagPath);
 
                     var filesInThisDir = allImageItems.Where(item =>
-                        Path.GetDirectoryName(item.FilePath)?.Equals(absoluteTagPath, System.StringComparison.OrdinalIgnoreCase) == true
+                        Path.GetDirectoryName(item.FilePath ?? string.Empty)?.Equals(absoluteTagPath, System.StringComparison.OrdinalIgnoreCase) == true
                     ).ToList();
 
                     if (filesInThisDir.Any())
                     {
-                        // Same logic as before to group by name and create series tags
                         var chineseNameGroups = filesInThisDir
                             .Where(item => !string.IsNullOrEmpty(item.BaseChineseName))
                             .GroupBy(item => item.BaseChineseName)
                             .ToList();
 
-                        var variantGroups = chineseNameGroups.Where(g => g.Count() > 1 || g.Any(i => i.HasVariant)).ToList();
+                        var variantGroups = chineseNameGroups.Where(g => g.Count() > 1 || g.Any(i => i?.HasVariant == true)).ToList();
                         var otherGroups = chineseNameGroups.Except(variantGroups).ToList();
 
                         foreach (var group in variantGroups)

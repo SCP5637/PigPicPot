@@ -1,5 +1,6 @@
 using System.IO;
 using System.Runtime.InteropServices;
+using PigPicPot.Helpers;
 
 namespace PigPicPot
 {
@@ -13,7 +14,7 @@ namespace PigPicPot
 
             try
             {
-                string configFile = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "usersettings.json");
+                string configFile = Path.Combine(PathManager.DataRoot, "usersettings.json");
                 if (File.Exists(configFile))
                 {
                     var content = File.ReadAllText(configFile);
@@ -27,7 +28,6 @@ namespace PigPicPot
             }
             catch (Exception ex)
             {
-                // Can't write to console if it failed, but we can avoid crashing.
                 System.Diagnostics.Debug.WriteLine($"Error showing debug console: {ex.Message}");
             }
         }

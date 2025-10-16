@@ -4,6 +4,7 @@ using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Security.Cryptography;
+using System.Text.Json;
 using System.Text.RegularExpressions;
 using System.Windows;
 using System.Windows.Controls;
@@ -24,62 +25,108 @@ namespace PigPicPot.Views
     public partial class MiniModeWindow : Window
     {
         private readonly Dictionary<ImageItem, System.Windows.Threading.DispatcherTimer> _pendingRequests = new Dictionary<ImageItem, System.Windows.Threading.DispatcherTimer>();
+        private FavoritesData _favoritesData = new FavoritesData();
+        private readonly string _favoritesFilePath;
 
         public MiniModeWindow()
         {
             InitializeComponent();
             LoadMiniModeConfiguration();
-            
-            // 创建并设置ViewModel
+
             var tagProvider = new TagProvider();
             var thumbnailService = new ThumbnailService();
             var settingsService = new SettingsService();
             var messenger = new Messenger();
-            
+
             var viewModel = new MiniViewModel(tagProvider, thumbnailService, settingsService, messenger, Dispatcher);
             DataContext = viewModel;
 
-            // 订阅消息
-            messenger.Register<CloseMiniWindowMessage>(this, (recipient, message) =>
-            {
-                this.Close();
-            });
+            messenger.Register<CloseMiniWindowMessage>(this, (recipient, message) => this.Close());
             messenger.Register<ShowNotificationMessage>(this, OnNotificationReceived);
+
+            _favoritesFilePath = Path.Combine(PathManager.DataRoot, "favorites.json");
+            LoadFavorites();
+        }
+
+        private void LoadFavorites()
+        {
+            if (File.Exists(_favoritesFilePath))
+            {
+                var json = File.ReadAllText(_favoritesFilePath);
+                _favoritesData = JsonSerializer.Deserialize<FavoritesData>(json) ?? new FavoritesData();
+            }
+            else
+            {
+                _favoritesData = new FavoritesData();
+            }
+
+            if (DataContext is MiniViewModel viewModel)
+            {
+                viewModel.FavoriteTags.Clear();
+                foreach (var fav in _favoritesData.Favorites)
+                {
+                    viewModel.FavoriteTags.Add(fav);
+                }
+            }
+        }
+
+        private void FavoritesToggleButton_Click(object sender, RoutedEventArgs e)
+        {
+            bool isChecked = FavoritesToggleButton.IsChecked == true;
+            TagsPanel.Visibility = isChecked ? Visibility.Collapsed : Visibility.Visible;
+            FavoritesTagsPanel.Visibility = isChecked ? Visibility.Visible : Visibility.Collapsed;
+
+            if (DataContext is MiniViewModel viewModel)
+            {
+                viewModel.ClearTagSelections();
+                foreach (var fav in viewModel.FavoriteTags) fav.IsSelected = false;
+                viewModel.ApplyFilters();
+            }
+        }
+
+        private void FavoriteTag_Click(object sender, RoutedEventArgs e)
+        {
+            if (sender is System.Windows.Controls.Primitives.ToggleButton toggleButton &&
+                toggleButton.DataContext is Favorite favorite &&
+                DataContext is MiniViewModel viewModel)
+            {
+                if (toggleButton.IsChecked == true)
+                {
+                    foreach (var otherFav in viewModel.FavoriteTags.Where(f => f != favorite)) otherFav.IsSelected = false;
+                    viewModel.ApplyFilters(favorite);
+                }
+                else
+                {
+                    viewModel.ApplyFilters();
+                }
+            }
         }
 
         private void LoadMiniModeConfiguration()
         {
             try
             {
-                string configFile = Path.Combine(PathHelper.GetApplicationRoot(), "usersettings.json");
+                string configFile = Path.Combine(PathManager.DataRoot, "usersettings.json");
                 if (!File.Exists(configFile)) return;
 
                 var config = File.ReadAllLines(configFile)
                                  .Where(line => !string.IsNullOrWhiteSpace(line) && !line.Trim().StartsWith("#") && line.Contains('='))
                                  .ToDictionary(line => line.Split('=')[0].Trim(), line => line.Split('=')[1].Trim());
 
-                // Set window size
                 this.Width = config.TryGetValue("mini_mode_width", out var w) && int.TryParse(w, out int width) ? width : 640;
                 this.Height = config.TryGetValue("mini_mode_height", out var h) && int.TryParse(h, out int height) ? height : 480;
 
-                // Set background image
                 if (config.TryGetValue("mini_mode_background", out var bgPathValue))
                 {
-                    string fullBgPath = Path.Combine(PathHelper.GetApplicationRoot(), bgPathValue.Replace('/', Path.DirectorySeparatorChar));
+                    string fullBgPath = Path.Combine(PathManager.AppRoot, bgPathValue.Replace('/', Path.DirectorySeparatorChar));
                     if (File.Exists(fullBgPath))
                     {
                         var bgBitmap = new BitmapImage();
                         bgBitmap.BeginInit();
                         bgBitmap.UriSource = new Uri(fullBgPath);
                         bgBitmap.EndInit();
-                        
-                        var backgroundBrush = FindName("BackgroundImageBrush") as ImageBrush;
-                        if (backgroundBrush != null)
-                        {
-                            backgroundBrush.ImageSource = bgBitmap;
-                        }
 
-                        // Check for secret button
+                        if (FindName("BackgroundImageBrush") is ImageBrush backgroundBrush) backgroundBrush.ImageSource = bgBitmap;
                         SpecialFeatures.CheckAndEnableFeatures(this, fullBgPath, bgBitmap.PixelWidth, bgBitmap.PixelHeight);
                     }
                 }
@@ -92,33 +139,6 @@ namespace PigPicPot.Views
             }
         }
 
-        public class LogFilter : TraceListener
-        {
-            private static readonly Regex _hwndHookRegex = new Regex(@"HwndHook received message: 0x(90|3|7C|7D)", RegexOptions.Compiled);
-
-            public override void Write(string? message)
-            {
-                if (!string.IsNullOrEmpty(message) && !_hwndHookRegex.IsMatch(message))
-                {
-                    Debug.WriteLine(message); // Pass the filtered message to the Debug listeners.
-                    Console.Write(message); // Also write to the Console output.
-                }
-            }
-
-            public override void WriteLine(string? message)
-            {
-                if (!string.IsNullOrEmpty(message) && !_hwndHookRegex.IsMatch(message))
-                {
-                    Debug.WriteLine(message + Environment.NewLine);
-                    Console.WriteLine(message);
-                }
-            }
-        }
-
-
-
-
-
         private void Gif_MouseEnter(object sender, System.Windows.Input.MouseEventArgs e)
         {
             if (sender is FrameworkElement grid && grid.DataContext is ImageItem item && item.IsAnimated && !item.IsCorrupted)
@@ -127,11 +147,7 @@ namespace PigPicPot.Views
                 if (image != null)
                 {
                     ImageBehavior.SetAnimatedSource(image, new BitmapImage(new Uri(item.FilePath)));
-                    var controller = ImageBehavior.GetAnimationController(image);
-                    if (controller != null)
-                    {
-                        controller.Play();
-                    }
+                    ImageBehavior.GetAnimationController(image)?.Play();
                 }
             }
         }
@@ -143,14 +159,8 @@ namespace PigPicPot.Views
                 var image = FindVisualChild<System.Windows.Controls.Image>(grid, "ThumbnailImage");
                 if (image != null)
                 {
-                    var controller = ImageBehavior.GetAnimationController(image);
-                    if (controller != null)
-                    {
-                        controller.Pause();
-                    }
-                    // Detach the animated source to release the file and stop processing
+                    ImageBehavior.GetAnimationController(image)?.Pause();
                     ImageBehavior.SetAnimatedSource(image, null);
-                    // Restore the thumbnail
                     image.Source = item.ThumbnailSource;
                 }
             }
@@ -169,26 +179,18 @@ namespace PigPicPot.Views
             return null;
         }
 
-
-
         private void OnNotificationReceived(object sender, ShowNotificationMessage message)
         {
-            Dispatcher.Invoke(() =>
-            {
-                ShowNotification(message.Text);
-            });
+            Dispatcher.Invoke(() => ShowNotification(message.Text));
         }
 
         private void ShowNotification(string message)
         {
             var notificationText = FindName("NotificationText") as TextBlock;
             var notificationOverlay = FindName("NotificationOverlay") as Border;
-            
-            if (notificationText != null)
-            {
-                notificationText.Text = message;
-            }
-            
+
+            if (notificationText != null) notificationText.Text = message;
+
             if (notificationOverlay != null && this.Resources["NotificationStoryboard"] is Storyboard storyboard)
             {
                 storyboard.Completed += (s, e) => { notificationOverlay.Visibility = Visibility.Collapsed; };
@@ -220,8 +222,6 @@ namespace PigPicPot.Views
             }
         }
 
-
-
         private void ImageItem_Loaded(object sender, RoutedEventArgs e)
         {
             if (sender is FrameworkElement element && element.DataContext is ImageItem item)
@@ -233,8 +233,7 @@ namespace PigPicPot.Views
                 {
                     timer.Stop();
                     _pendingRequests.Remove(item);
-                    var thumbnailService = (DataContext as MiniViewModel)?.ThumbnailService;
-                    thumbnailService?.QueueThumbnailRequest(item);
+                    if (DataContext is MiniViewModel viewModel) viewModel.ThumbnailService?.QueueThumbnailRequest(item);
                 };
                 _pendingRequests[item] = timer;
                 timer.Start();

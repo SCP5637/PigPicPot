@@ -171,4 +171,73 @@
   <data name="ErrorFailedToExport" xml:space="preserve">
     <value>Failed to export:</value>
   </data>
+  <data name="Favorites" xml:space="preserve">
+    <value>Favorites</value>
+</data>
+<data name="New" xml:space="preserve">
+    <value>New</value>
+</data>
+<data name="Rename" xml:space="preserve">
+    <value>Rename</value>
+</data>
+<data name="Delete" xml:space="preserve">
+    <value>Delete</value>
+</data>
+<data name="EnterNewFavoriteName" xml:space="preserve">
+    <value>Enter new favorite name:</value>
+</data>
+<data name="CreateFavorite" xml:space="preserve">
+    <value>Create Favorite</value>
+</data>
+<data name="FavoriteNameError" xml:space="preserve">
+    <value>Favorite name cannot be empty or already exist.</value>
+</data>
+<data name="Error" xml:space="preserve">
+    <value>Error</value>
+</data>
+<data name="AddToWhichFavorite" xml:space="preserve">
+    <value>Add to which favorite?</value>
+</data>
+<data name="SelectFavorite" xml:space="preserve">
+    <value>Select Favorite</value>
+</data>
+<data name="ImageAlreadyInFavorite" xml:space="preserve">
+    <value>Image already in {0}</value>
+</data>
+<data name="AddedToFavorite" xml:space="preserve">
+    <value>Added to {0}</value>
+</data>
+<data name="RemovedFromFavorite" xml:space="preserve">
+    <value>Removed from {0}</value>
+</data>
+<data name="CannotRenameDefault" xml:space="preserve">
+    <value>The default favorite cannot be renamed.</value>
+</data>
+<data name="RenamingFavorite" xml:space="preserve">
+    <value>Renaming favorite '{0}'. Enter new name:</value>
+</data>
+<data name="RenameFavorite" xml:space="preserve">
+    <value>Rename Favorite</value>
+</data>
+<data name="CannotDeleteDefault" xml:space="preserve">
+    <value>The default favorite cannot be deleted.</value>
+</data>
+<data name="ConfirmDeleteFavorite" xml:space="preserve">
+    <value>Are you sure you want to delete the favorite '{0}'?</value>
+</data>
+<data name="ConfirmDelete" xml:space="preserve">
+    <value>Confirm Delete</value>
+</data>
+<data name="ResourceUpdateAvailable" xml:space="preserve">
+    <value>Resource update available!</value>
+</data>
+<data name="ApplicationUpdateAvailable" xml:space="preserve">
+    <value>Application update available!</value>
+</data>
+<data name="FavoriteRenamed" xml:space="preserve">
+    <value>Favorite '{0}' renamed to '{1}'</value>
+</data>
+<data name="FavoriteDeleted" xml:space="preserve">
+    <value>Favorite '{0}' deleted</value>
+</data>
 </root>

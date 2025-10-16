@@ -6,6 +6,10 @@ using System.Windows.Interop;
 
 namespace PigPicPot.Helpers
 {
+    /// <summary>
+    /// 热键助手类，用于注册和管理全局热键
+    /// Hotkey helper class, used to register and manage global hotkeys
+    /// </summary>
     public class HotkeyHelper : IDisposable
     {
         private const int WM_HOTKEY = 0x0312;
@@ -15,6 +19,11 @@ namespace PigPicPot.Helpers
         private HwndSource? _source;
         private Action? _onHotKeyPressed;
 
+        /// <summary>
+        /// 构造函数，初始化热键助手
+        /// Constructor, initialize hotkey helper
+        /// </summary>
+        /// <param name="window">关联的窗口</param>
         public HotkeyHelper(Window window)
         {
             _window = window;
@@ -22,6 +31,13 @@ namespace PigPicPot.Helpers
             helper.EnsureHandle();
         }
 
+        /// <summary>
+        /// 注册热键
+        /// Register hotkey
+        /// </summary>
+        /// <param name="modifier">修饰键</param>
+        /// <param name="key">按键</param>
+        /// <param name="onHotKeyPressed">热键按下时的回调函数</param>
         public void Register(ModifierKeys modifier, Key key, Action onHotKeyPressed)
         {
             _onHotKeyPressed = onHotKeyPressed;
@@ -35,6 +51,10 @@ namespace PigPicPot.Helpers
             }
         }
 
+        /// <summary>
+        /// 取消注册热键
+        /// Unregister hotkey
+        /// </summary>
         public void Unregister()
         {
             var handle = new WindowInteropHelper(_window).Handle;

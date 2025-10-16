@@ -1,6 +1,7 @@
 using System;
 using System.IO;
 using System.Threading.Tasks;
+using PigPicPot.Helpers;
 
 namespace PigPicPot.Services
 {
@@ -12,7 +13,7 @@ namespace PigPicPot.Services
             {
                 var settings = new { IsPinned = isPinned };
                 string json = System.Text.Json.JsonSerializer.Serialize(settings);
-                string filePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "user_settings.json");
+                string filePath = Path.Combine(PathManager.DataRoot, "usersettings.json");
                 await File.WriteAllTextAsync(filePath, json);
             }
             catch (Exception ex)
@@ -25,7 +26,7 @@ namespace PigPicPot.Services
         {
             try
             {
-                string filePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "user_settings.json");
+                string filePath = Path.Combine(PathManager.DataRoot, "usersettings.json");
                 if (File.Exists(filePath))
                 {
                     string json = await File.ReadAllTextAsync(filePath);

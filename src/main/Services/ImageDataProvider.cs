@@ -5,13 +5,28 @@ using System.Threading.Tasks;
 using System.Collections.Generic;
 using PigPicPot.Models;
 using System;
+using System.Reflection;
+using System.Diagnostics;
 
 namespace PigPicPot.Services
 {
+    /// <summary>
+    /// 图像数据提供者，负责加载和管理图像数据
+    /// Image data provider, responsible for loading and managing image data
+    /// </summary>
     public class ImageDataProvider : IImageDataProvider
     {
+        /// <summary>
+        /// 所有图像项的只读集合
+        /// Read-only collection of all image items
+        /// </summary>
         public ReadOnlyCollection<ImageItem> AllImageItems { get; private set; } = new ReadOnlyCollection<ImageItem>(new List<ImageItem>());
 
+        /// <summary>
+        /// 异步加载图像数据
+        /// Asynchronously load image data
+        /// </summary>
+        /// <param name="directoriesToScan">需要扫描的目录列表</param>
         public async Task LoadAsync(IEnumerable<string> directoriesToScan)
         {
             await Task.Run(() =>
@@ -21,9 +36,11 @@ namespace PigPicPot.Services
                 {
                     if (Directory.Exists(dir))
                     {
+                        // 获取目录中的所有图像文件（排除背景图片）
+                        // Get all image files in directory (excluding background images)
                         var files = Directory.GetFiles(dir, "*.*", SearchOption.TopDirectoryOnly)
                             .Where(f => IsImageFile(f))
-                            .Where(f => !IsBackgroundImage(f)) // Keep this filter
+                            .Where(f => !IsBackgroundImage(f))
                             .ToList();
 
                         foreach (var file in files)
@@ -47,8 +64,7 @@ namespace PigPicPot.Services
                 var fileName = Path.GetFileName(filePath);
                 var nameWithoutExt = Path.GetFileNameWithoutExtension(fileName);
 
-                // 解析文件名
-                string displayName = fileName; // 默认使用文件名
+                string displayName = fileName;
                 string baseEnglishName = "";
                 string baseChineseName = "";
                 string variantNumber = "";
@@ -56,10 +72,8 @@ namespace PigPicPot.Services
 
                 if (nameWithoutExt.StartsWith("pig_"))
                 {
-                    string name = nameWithoutExt.Substring(4); // Remove "pig_"
+                    string name = nameWithoutExt.Substring(4);
 
-                    // 解析文件名格式: 英文名_中文名_数字 或 英文名_中文名数字
-                    // 首先找到中文部分的起始位置
                     int firstChineseIndex = -1;
                     for (int i = 0; i < name.Length; i++)
                     {
@@ -72,11 +86,9 @@ namespace PigPicPot.Services
 
                     if (firstChineseIndex != -1)
                     {
-                        // 分离英文和中文部分
                         string englishPart = name.Substring(0, firstChineseIndex).TrimEnd('_');
                         string chinesePart = name.Substring(firstChineseIndex);
 
-                        // 从中文部分提取数字变体
                         var chineseMatch = System.Text.RegularExpressions.Regex.Match(chinesePart, @"^([^_\d]+)(\d+)?");
                         if (chineseMatch.Success)
                         {
@@ -92,10 +104,8 @@ namespace PigPicPot.Services
                             baseChineseName = chinesePart;
                         }
 
-                        // 清理英文部分
                         baseEnglishName = System.Text.RegularExpressions.Regex.Replace(englishPart, @"[\d_-]+$", "").TrimEnd('_');
 
-                        // 显示名称使用中文部分
                         displayName = baseChineseName;
                         if (hasVariant)
                         {
@@ -104,13 +114,11 @@ namespace PigPicPot.Services
                     }
                     else
                     {
-                        // 只有英文部分
                         baseEnglishName = System.Text.RegularExpressions.Regex.Replace(name, @"[\d_-]+$", "").TrimEnd('_');
                         displayName = baseEnglishName;
                     }
                 }
 
-                // 构建标签列表
                 var tags = new List<string>();
                 var directory = Path.GetDirectoryName(filePath);
                 if (directory != null && directory.Contains("resource"))
@@ -123,17 +131,16 @@ namespace PigPicPot.Services
                     tags.AddRange(pathParts);
                 }
 
-                // 添加动态标签信息
                 var imageItem = new ImageItem
                 {
                     FilePath = filePath,
                     FileName = displayName,
                     IsAnimated = Path.GetExtension(filePath).Equals(".gif", StringComparison.OrdinalIgnoreCase),
                     Tags = tags,
-                    SeriesTag = baseEnglishName, // 使用英文名作为系列标签
-                    BaseChineseName = baseChineseName, // 基础中文名
-                    VariantNumber = variantNumber, // 变体编号
-                    HasVariant = hasVariant, // 是否有变体
+                    SeriesTag = baseEnglishName,
+                    BaseChineseName = baseChineseName,
+                    VariantNumber = variantNumber,
+                    HasVariant = hasVariant,
                     ThumbnailSource = null,
                     IsThumbnailQueued = false
                 };

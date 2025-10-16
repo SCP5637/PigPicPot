@@ -1,5 +1,7 @@
 using System;
 using System.IO;
+using System.Reflection;
+using System.Diagnostics;
 
 namespace PigPicPot.Helpers
 {
@@ -7,9 +9,11 @@ namespace PigPicPot.Helpers
     {
         public static string GetApplicationRoot()
         {
-            string? exePath = System.Diagnostics.Process.GetCurrentProcess().MainModule?.FileName;
-            string? exeDir = Path.GetDirectoryName(exePath);
-            return exeDir ?? AppDomain.CurrentDomain.BaseDirectory;
+            string exePath = Process.GetCurrentProcess().MainModule?.FileName 
+                ?? Assembly.GetEntryAssembly()?.Location 
+                ?? AppDomain.CurrentDomain.BaseDirectory;
+            
+            return Path.GetDirectoryName(exePath) ?? AppDomain.CurrentDomain.BaseDirectory;
         }
     }
 }

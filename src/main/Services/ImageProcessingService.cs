@@ -5,34 +5,41 @@ using System.Threading.Tasks;
 
 namespace PigPicPot.Services
 {
+    /// <summary>
+    /// 图像处理服务，提供图像处理功能
+    /// Image processing service, provides image processing functionality
+    /// </summary>
     public class ImageProcessingService
     {
+        /// <summary>
+        /// 异步修复GIF文件
+        /// Asynchronously repair GIF file
+        /// </summary>
+        /// <param name="filePath">GIF文件路径</param>
+        /// <returns>修复是否成功</returns>
         public async Task<bool> RepairGifAsync(string filePath)
         {
             string tempFilePath = Path.GetTempFileName();
             try
             {
-                // Load the image with ImageSharp. This will perform a full decode.
                 using (var image = await SixLabors.ImageSharp.Image.LoadAsync(filePath))
                 {
-                    // If it's not an animated GIF, no repair is needed.
+                    // 如果只有一帧，不需要修复
+                    // If only one frame, no need to repair
                     if (image.Frames.Count <= 1)
                     {
                         return true;
                     }
 
-                    // Save the image to a temporary path. ImageSharp will re-encode it correctly.
                     await image.SaveAsync(tempFilePath, new GifEncoder());
                 }
 
-                // Overwrite the original file with the repaired one.
                 File.Move(tempFilePath, filePath, true);
                 return true;
             }
             catch (System.Exception ex)
             {
                 System.Console.WriteLine($"[ImageProcessingService] Failed to repair GIF {filePath}: {ex.Message}");
-                // Clean up the temp file if it exists
                 if (File.Exists(tempFilePath))
                 {
                     File.Delete(tempFilePath);

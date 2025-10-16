@@ -3,6 +3,10 @@ namespace PigPicPot.Models
     using System.Collections.Generic;
     using System.ComponentModel;
 
+    /// <summary>
+    /// 图像项类，表示单个图像的信息
+    /// Image item class, represents information of a single image
+    /// </summary>
     public class ImageItem : INotifyPropertyChanged
     {
         private string _filePath = string.Empty;
