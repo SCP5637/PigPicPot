@@ -19,33 +19,50 @@ namespace PigPicPot.Services
         /// <returns>修复是否成功</returns>
         public async Task<bool> RepairGifAsync(string filePath)
         {
-            string tempFilePath = Path.GetTempFileName();
-            try
+            // 修复：添加文件访问冲突处理
+            for (int i = 0; i < 3; i++) // 重试3次
             {
-                using (var image = await SixLabors.ImageSharp.Image.LoadAsync(filePath))
+                string tempFilePath = Path.GetTempFileName();
+                try
                 {
-                    // 如果只有一帧，不需要修复
-                    // If only one frame, no need to repair
-                    if (image.Frames.Count <= 1)
+                    using (var image = await SixLabors.ImageSharp.Image.LoadAsync(filePath))
                     {
-                        return true;
+                        // 如果只有一帧，不需要修复
+                        // If only one frame, no need to repair
+                        if (image.Frames.Count <= 1)
+                        {
+                            return true;
+                        }
+
+                        await image.SaveAsync(tempFilePath, new GifEncoder());
                     }
 
-                    await image.SaveAsync(tempFilePath, new GifEncoder());
+                    File.Move(tempFilePath, filePath, true);
+                    return true;
                 }
-
-                File.Move(tempFilePath, filePath, true);
-                return true;
-            }
-            catch (System.Exception ex)
-            {
-                System.Console.WriteLine($"[ImageProcessingService] Failed to repair GIF {filePath}: {ex.Message}");
-                if (File.Exists(tempFilePath))
+                catch (System.IO.IOException ioEx)
                 {
-                    File.Delete(tempFilePath);
+                    System.Console.WriteLine($"[ImageProcessingService] IO Exception when repairing GIF {filePath} (attempt {i + 1}): {ioEx.Message}");
+                    if (File.Exists(tempFilePath))
+                    {
+                        File.Delete(tempFilePath);
+                    }
+                    
+                    // 等待一段时间再重试
+                    await Task.Delay(100 * (i + 1));
                 }
-                return false;
+                catch (System.Exception ex)
+                {
+                    System.Console.WriteLine($"[ImageProcessingService] Failed to repair GIF {filePath}: {ex.Message}");
+                    if (File.Exists(tempFilePath))
+                    {
+                        File.Delete(tempFilePath);
+                    }
+                    return false;
+                }
             }
+            
+            return false;
         }
     }
 }

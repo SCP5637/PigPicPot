@@ -4,12 +4,14 @@
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:local="clr-namespace:PigPicPot.Views"
-        xmlns:gif="http://wpfanimatedgif.codeplex.com"
         xmlns:strings="clr-namespace:PigPicPot.Strings"
-        xmlns:system="clr-namespace:System;assembly=mscorlib"
         mc:Ignorable="d"
-        Title="PigPicPot"
-        Loaded="MainWindow_Loaded">
+        Title="PigPicPot" Height="768" Width="1366" 
+        WindowStartupLocation="CenterScreen"
+        Background="#1e1e1e"
+        Foreground="White"
+        Closing="MainWindow_Closing"
+        Closed="MainWindow_Closed">
     <Window.Resources>
         <BooleanToVisibilityConverter x:Key="BooleanToVisibilityConverter"/>
         <Storyboard x:Key="NotificationStoryboard">
@@ -17,15 +19,15 @@
             <DoubleAnimation Storyboard.TargetProperty="Opacity" From="1" To="0" Duration="0:0:0.5" BeginTime="0:0:2"/>
         </Storyboard>
     </Window.Resources>
-    <Window.Background>
-        <ImageBrush x:Name="BackgroundImageBrush" Stretch="UniformToFill"/>
-    </Window.Background>
     <Grid>
+        <Grid.Background>
+            <ImageBrush x:Name="BackgroundImageBrush" Stretch="UniformToFill"/>
+        </Grid.Background>
         <!-- Main Content -->
         <DockPanel x:Name="MainContentPanel" Margin="20" Visibility="Collapsed">
             <StackPanel DockPanel.Dock="Top" Orientation="Horizontal">
                 <ToggleButton x:Name="FavoritesToggleButton" Content="★" FontSize="16" Margin="0,0,5,0" VerticalAlignment="Center" Click="FavoritesToggleButton_Click"/>
-                <TextBox x:Name="SearchTextBox" Text="{Binding SearchText, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" FontSize="14" Padding="5" Width="300"/>
+                <TextBox x:Name="SearchTextBox" Text="{Binding SearchText, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" FontSize="14" Padding="5" Width="300" TextChanged="SearchTextBox_TextChanged"/>
             </StackPanel>
             <TextBlock x:Name="LoadSummaryTextBlock" DockPanel.Dock="Top" Margin="0,10,0,5" FontSize="12" HorizontalAlignment="Center" Text="{Binding LoadSummaryText}"/>
             <TextBlock x:Name="SummaryTextBlock" DockPanel.Dock="Top" Margin="0,0,0,5" FontSize="12" HorizontalAlignment="Center" Text="{Binding SummaryText}"/>
@@ -35,7 +37,7 @@
                 <ItemsControl x:Name="Level1TagsItemsControl" ItemsSource="{Binding Level1Tags}">
                     <ItemsControl.ItemTemplate>
                         <DataTemplate>
-                            <ToggleButton Content="{Binding DisplayName}" IsChecked="{Binding IsSelected, Mode=OneWay}" Command="{Binding DataContext.SelectTagCommand, RelativeSource={RelativeSource AncestorType=Window}}" CommandParameter="{Binding}" Margin="5,0,5,0"/>
+                            <ToggleButton Content="{Binding DisplayName}" IsChecked="{Binding IsSelected, Mode=OneWay}" Command="{Binding DataContext.SelectTagCommand, RelativeSource={RelativeSource AncestorType=Window}}" CommandParameter="{Binding}" Margin="5,0,5,0" Click="Tag_Click"/>
                         </DataTemplate>
                     </ItemsControl.ItemTemplate>
                     <ItemsControl.ItemsPanel>
@@ -47,7 +49,7 @@
                 <ItemsControl x:Name="Level2TagsItemsControl" ItemsSource="{Binding Level2Tags}" Margin="0,5,0,0">
                     <ItemsControl.ItemTemplate>
                         <DataTemplate>
-                            <ToggleButton Content="{Binding DisplayName}" IsChecked="{Binding IsSelected, Mode=OneWay}" Command="{Binding DataContext.SelectTagCommand, RelativeSource={RelativeSource AncestorType=Window}}" CommandParameter="{Binding}" Margin="5,0,5,0"/>
+                            <ToggleButton Content="{Binding DisplayName}" IsChecked="{Binding IsSelected, Mode=OneWay}" Command="{Binding DataContext.SelectTagCommand, RelativeSource={RelativeSource AncestorType=Window}}" CommandParameter="{Binding}" Margin="5,0,5,0" Click="Tag_Click"/>
                         </DataTemplate>
                     </ItemsControl.ItemTemplate>
                     <ItemsControl.ItemsPanel>
@@ -59,7 +61,7 @@
                 <ItemsControl x:Name="Level3TagsItemsControl" ItemsSource="{Binding Level3Tags}" Margin="0,5,0,0">
                     <ItemsControl.ItemTemplate>
                         <DataTemplate>
-                            <ToggleButton Content="{Binding DisplayName}" IsChecked="{Binding IsSelected, Mode=OneWay}" Command="{Binding DataContext.SelectTagCommand, RelativeSource={RelativeSource AncestorType=Window}}" CommandParameter="{Binding}" Margin="5,0,5,0"/>
+                            <ToggleButton Content="{Binding DisplayName}" IsChecked="{Binding IsSelected, Mode=OneWay}" Command="{Binding DataContext.SelectTagCommand, RelativeSource={RelativeSource AncestorType=Window}}" CommandParameter="{Binding}" Margin="5,0,5,0" Click="Tag_Click"/>
                         </DataTemplate>
                     </ItemsControl.ItemTemplate>
                     <ItemsControl.ItemsPanel>
@@ -71,30 +73,34 @@
             </StackPanel>
 
             <!-- Favorites Tags -->
-            <ItemsControl x:Name="FavoritesTagsItemsControl" DockPanel.Dock="Top" ItemsSource="{Binding FavoriteTags}" Margin="0,0,0,5" Visibility="Collapsed">
-                <ItemsControl.ItemTemplate>
-                    <DataTemplate>
-                        <ToggleButton Content="{Binding Name}" IsChecked="{Binding IsSelected, Mode=TwoWay}" Margin="5,0,5,0" Click="FavoriteTag_Click" MouseRightButtonDown="FavoriteTag_RightClick">
-                        </ToggleButton>
-                    </DataTemplate>
-                </ItemsControl.ItemTemplate>
-                <ItemsControl.ItemsPanel>
-                    <ItemsPanelTemplate>
-                        <WrapPanel/>
-                    </ItemsPanelTemplate>
-                </ItemsControl.ItemsPanel>
-                <ItemsControl.Template>
-                    <ControlTemplate TargetType="ItemsControl">
-                        <WrapPanel>
-                            <ItemsPresenter/>
-                            <Button x:Name="NewFavoriteButton" Content="+ New" Margin="5,0,5,0" Click="NewFavoriteButton_Click"/>
-                        </WrapPanel>
-                    </ControlTemplate>
-                </ItemsControl.Template>
-            </ItemsControl>
+            <DockPanel x:Name="FavoritesTagsPanel" DockPanel.Dock="Top" Margin="0,0,0,5" Visibility="Collapsed">
+                <Button Content="+ New" DockPanel.Dock="Right" Margin="5,0,0,0" Click="CreateNewFavorite_Click" VerticalAlignment="Center"/>
+                <ItemsControl ItemsSource="{Binding FavoriteTags}">
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate>
+                            <ToggleButton Content="{Binding Name}" IsChecked="{Binding IsSelected, Mode=TwoWay}" Margin="5,0,5,0" Click="FavoriteTag_Click" MouseRightButtonDown="FavoriteTag_RightClick">
+                                <ToggleButton.ContextMenu>
+                                    <ContextMenu>
+                                        <MenuItem Header="重命名" Click="RenameFavorite_Click"/>
+                                        <MenuItem Header="删除" Click="DeleteFavorite_Click"/>
+                                    </ContextMenu>
+                                </ToggleButton.ContextMenu>
+                            </ToggleButton>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                    <ItemsControl.ItemsPanel>
+                        <ItemsPanelTemplate>
+                            <WrapPanel/>
+                        </ItemsPanelTemplate>
+                    </ItemsControl.ItemsPanel>
+                </ItemsControl>
+            </DockPanel>
 
-
-            <ListBox x:Name="ImageListBox" ScrollViewer.HorizontalScrollBarVisibility="Disabled" Background="#80FFFFFF" ItemsSource="{Binding FilteredItems}">
+            <ListBox x:Name="ImageListBox" 
+                     ScrollViewer.HorizontalScrollBarVisibility="Disabled" 
+                     Background="#80FFFFFF" 
+                     ItemsSource="{Binding FilteredItems}"
+                     ScrollViewer.ScrollChanged="ImageListBox_ScrollChanged">
                 <ListBox.ItemsPanel>
                     <ItemsPanelTemplate>
                         <WrapPanel/>
@@ -138,13 +144,21 @@
         </Border>
 
         <!-- Info Button -->
-        <Button x:Name="InfoButton" HorizontalAlignment="Left" VerticalAlignment="Bottom" Margin="10" Width="15" Height="15" Opacity="0.7" Visibility="Collapsed">
+        <Button x:Name="InfoButton" HorizontalAlignment="Left" VerticalAlignment="Bottom" Margin="10" Width="15" Height="15" Opacity="0.7" Visibility="Collapsed" Click="InfoButton_Click">
             <TextBlock Text="ⓘ" FontSize="11" FontWeight="Bold" Foreground="#4682B4"/>
         </Button>
 
-        <!-- Toggle UI Button -->
-        <Button x:Name="ToggleUIVisibilityButton" HorizontalAlignment="Right" VerticalAlignment="Bottom" Margin="10" Width="15" Height="15" Opacity="0.7" Click="ToggleUIVisibilityButton_Click">
-            <TextBlock Text="Ⓑ" FontSize="11" FontWeight="Bold" Foreground="#4682B4"/>
-        </Button>
+        <!-- Control Buttons Panel -->
+        <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Bottom" Margin="10">
+            <!-- Reset Button -->
+            <Button x:Name="ResetMemoryButton" Width="15" Height="15" Opacity="0.7" Margin="0,0,5,0" Click="ResetMemoryButton_Click">
+                <TextBlock Text="♻" FontSize="11" FontWeight="Bold" Foreground="#4682B4"/>
+            </Button>
+            
+            <!-- Toggle UI Button -->
+            <Button x:Name="ToggleUIVisibilityButton" Width="15" Height="15" Opacity="0.7" Click="ToggleUIVisibilityButton_Click">
+                <TextBlock Text="Ⓑ" FontSize="11" FontWeight="Bold" Foreground="#4682B4"/>
+            </Button>
+        </StackPanel>
     </Grid>
 </Window>

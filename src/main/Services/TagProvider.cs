@@ -7,6 +7,7 @@ using PigPicPot.Models;
 using PigPicPot.Helpers;
 using System.Reflection;
 using System.Diagnostics;
+using PigPicPot.Views;
 
 namespace PigPicPot.Services
 {
@@ -45,48 +46,61 @@ namespace PigPicPot.Services
         /// </summary>
         public async Task LoadAsync()
         {
-            await Task.Run(async () =>
-            {
-                var rootTags = new List<TagNode>();
-                var leafDirectories = new List<string>();
-                
-                string exePath = Process.GetCurrentProcess().MainModule?.FileName 
-                    ?? Assembly.GetEntryAssembly()?.Location 
-                    ?? AppDomain.CurrentDomain.BaseDirectory;
-                string appDir = Path.GetDirectoryName(exePath) ?? AppDomain.CurrentDomain.BaseDirectory;
-                var resourcePath = Path.Combine(appDir, "resource");
+            LoggingHelper.Log("TagProvider.LoadAsync started.");
+            var app = System.Windows.Application.Current as App;
+            app?.UpdateSplashScreen("正在初始化标签系统...", 5);
+            
+            var rootTags = new List<TagNode>();
+            var leafDirectories = new List<string>();
+            
+            string exePath = Process.GetCurrentProcess().MainModule?.FileName 
+                ?? Assembly.GetEntryAssembly()?.Location 
+                ?? AppDomain.CurrentDomain.BaseDirectory;
+            string appDir = Path.GetDirectoryName(exePath) ?? AppDomain.CurrentDomain.BaseDirectory;
+            var resourcePath = Path.Combine(appDir, "resource");
 
-                // 构建标签树结构
-                // Build tag tree structure
-                if (Directory.Exists(resourcePath))
+            // 构建标签树结构
+            // Build tag tree structure
+            LoggingHelper.Log("TagProvider.LoadAsync building tag tree.");
+            if (Directory.Exists(resourcePath))
+            {
+                var topLevelDirs = Directory.GetDirectories(resourcePath);
+                foreach (var dir in topLevelDirs)
                 {
-                    var topLevelDirs = Directory.GetDirectories(resourcePath);
-                    foreach (var dir in topLevelDirs)
+                    var tagNode = BuildTagTree(dir, 1, leafDirectories);
+                    if (tagNode != null)
                     {
-                        var tagNode = BuildTagTree(dir, 1, leafDirectories);
-                        if (tagNode != null)
-                        {
-                            rootTags.Add(tagNode);
-                        }
+                        rootTags.Add(tagNode);
                     }
                 }
-                this.RootTags = new ReadOnlyCollection<TagNode>(rootTags);
+            }
+            this.RootTags = new ReadOnlyCollection<TagNode>(rootTags);
+            LoggingHelper.Log("TagProvider.LoadAsync tag tree built.");
 
-                // 加载图像数据
-                // Load image data
-                await _imageDataProvider.LoadAsync(leafDirectories);
-                var allImageItems = _imageDataProvider.AllImageItems;
+            // 加载图像数据
+            // Load image data
+            app?.UpdateSplashScreen("正在加载图像数据...", 15);
+            LoggingHelper.Log("TagProvider.LoadAsync loading image data.");
+            await _imageDataProvider.LoadAsync(leafDirectories);
+            LoggingHelper.Log("TagProvider.LoadAsync image data loaded.");
+            var allImageItems = _imageDataProvider.AllImageItems;
 
-                // 添加动态标签到叶子节点
-                // Add dynamic tags to leaf nodes
-                AddDynamicTagsToLeaves(this.RootTags, allImageItems);
-            });
+            // 添加动态标签到叶子节点
+            // Add dynamic tags to leaf nodes
+            app?.UpdateSplashScreen("正在构建动态标签...", 90);
+            LoggingHelper.Log("TagProvider.LoadAsync adding dynamic tags.");
+            AddDynamicTagsToLeaves(this.RootTags, allImageItems);
+            LoggingHelper.Log("TagProvider.LoadAsync dynamic tags added.");
+            
+            // 发送完成消息
+            app?.UpdateSplashScreen("标签系统初始化完成", 95);
+            LoggingHelper.Log("TagProvider.LoadAsync finished.");
         }
 
         private TagNode? BuildTagTree(string directoryPath, int level, List<string> leafDirectories)
         {
             var dirName = Path.GetFileName(directoryPath);
-            if (string.IsNullOrEmpty(dirName) || dirName.Equals("temp", System.StringComparison.OrdinalIgnoreCase))
+            if (string.IsNullOrEmpty(dirName) || dirName.Equals("temp", System.StringComparison.OrdinalIgnoreCase) || dirName.Equals("db", System.StringComparison.OrdinalIgnoreCase))
             {
                 return null;
             }
@@ -131,6 +145,8 @@ namespace PigPicPot.Services
                     AddDynamicTagsToLeaves(tag.Children, allImageItems);
                 }
 
+                // 修改逻辑：始终在叶子节点添加基于文件名的动态标签
+                // Modified logic: Always add filename-based dynamic tags at leaf nodes
                 if (!tag.Children.Any() || tag.Children.All(c => c.IsSeriesTag))
                 {
                     var pathParts = new Stack<string>();
@@ -156,22 +172,32 @@ namespace PigPicPot.Services
                     {
                         var chineseNameGroups = filesInThisDir
                             .Where(item => !string.IsNullOrEmpty(item.BaseChineseName))
-                            .GroupBy(item => item.BaseChineseName)
+                            .GroupBy(item => item.BaseChineseName!)
                             .ToList();
 
                         var variantGroups = chineseNameGroups.Where(g => g.Count() > 1 || g.Any(i => i?.HasVariant == true)).ToList();
-                        var otherGroups = chineseNameGroups.Except(variantGroups).ToList();
+                        var otherGroups = chineseNameGroups.Except(variantGroups.Cast<IGrouping<string, ImageItem>>(), new GroupEqualityComparer()).ToList();
 
+                        // 清除现有的系列标签
+                        // Clear existing series tags
+                        var seriesTagsToRemove = tag.Children.Where(c => c.IsSeriesTag).ToList();
+                        foreach (var seriesTag in seriesTagsToRemove)
+                        {
+                            tag.Children.Remove(seriesTag);
+                        }
+
+                        // 添加基于文件名的动态标签（始终在最底层）
+                        // Add filename-based dynamic tags (always at the bottom level)
                         foreach (var group in variantGroups)
                         {
                             var seriesTag = new TagNode
                             {
-                                DirectoryName = group.Key,
-                                DisplayName = group.Key,
+                                DirectoryName = group.Key ?? "",
+                                DisplayName = group.Key ?? "",
                                 Level = tag.Level + 1,
                                 IsSelected = false,
                                 IsSeriesTag = true,
-                                Parent = tag!
+                                Parent = tag
                             };
                             tag.Children.Add(seriesTag);
                         }
@@ -185,7 +211,7 @@ namespace PigPicPot.Services
                                 Level = tag.Level + 1,
                                 IsSelected = false,
                                 IsSeriesTag = true,
-                                Parent = tag!
+                                Parent = tag
                             };
                             tag.Children.Add(otherTag);
                         }
@@ -197,6 +223,21 @@ namespace PigPicPot.Services
         private string GetDisplayName(string directoryName)
         {
             return directoryName.Replace('_', ' ');
+        }
+    }
+
+    internal class GroupEqualityComparer : IEqualityComparer<IGrouping<string, ImageItem>>
+    {
+        public bool Equals(IGrouping<string, ImageItem>? x, IGrouping<string, ImageItem>? y)
+        {
+            if (x == null && y == null) return true;
+            if (x == null || y == null) return false;
+            return x.Key == y.Key;
+        }
+
+        public int GetHashCode(IGrouping<string, ImageItem>? obj)
+        {
+            return obj?.Key.GetHashCode() ?? 0;
         }
     }
 }

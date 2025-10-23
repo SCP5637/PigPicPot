@@ -26,6 +26,13 @@
     <Page Include="Views\MiniModeWindow.xaml" />
     <Page Include="Core\InfoWindow.xaml" />
     <Page Include="Core\MiniInfoWindow.xaml" />
+    <Page Include="Core\InputDialog.xaml" />
+    <Page Include="Core\ConfirmDialog.xaml" />
+    <Page Include="Views\SplashScreenWindow.xaml" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <EmbeddedResource Include="icon.ico" />
   </ItemGroup>
 
   <ItemGroup>
@@ -45,11 +52,26 @@
   </ItemGroup>
 
   <ItemGroup>
+    <PackageReference Include="Microsoft.VisualBasic" Version="10.3.0" />
     <PackageReference Include="SixLabors.ImageSharp" Version="3.1.11" />
     <PackageReference Include="WpfAnimatedGif" Version="2.0.2" />
+    <PackageReference Include="Microsoft.Data.Sqlite" Version="9.0.10" />
+    <PackageReference Include="VirtualizingWrapPanel" Version="1.5.7" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Compile Update="Views\SplashScreenWindow.xaml.cs">
+      <DependentUpon>SplashScreenWindow.xaml</DependentUpon>
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Update="Core\InputDialog.xaml.cs">
+      <DependentUpon>InputDialog.xaml</DependentUpon>
+    </Compile>
+    <Compile Update="Core\ConfirmDialog.xaml.cs">
+      <DependentUpon>ConfirmDialog.xaml</DependentUpon>
+    </Compile>
   </ItemGroup>
 
 
 
 </Project>
-

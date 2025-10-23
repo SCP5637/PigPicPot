@@ -1,0 +1,15 @@
+# PigPicPot 项目依赖
+
+## 系统要求
+- .NET 8.0 SDK 或更高版本
+- Windows 10 或更高版本 (由于使用了 Windows Forms 和特定的 Windows API)
+
+## NuGet 包依赖
+1. SixLabors.ImageSharp (v3.1.11) - 用于图像处理和 GIF 修复
+2. WpfAnimatedGif (v2.0.2) - 用于在 WPF 中显示动画 GIF
+
+## 开发工具
+- JetBrains Rider
+- Visual Studio 2022 或更高版本 (推荐)
+- 或者使用 Visual Studio Code 配合 C# 扩展
+- .NET CLI 工具 (包含在 .NET SDK 中)

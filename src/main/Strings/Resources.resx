@@ -240,4 +240,16 @@
 <data name="FavoriteDeleted" xml:space="preserve">
     <value>Favorite '{0}' deleted</value>
 </data>
+<data name="TrayNotificationText" xml:space="preserve">
+    <value>PigPicPot is here! Right-click to access its features.</value>
+</data>
+<data name="TrayMenuOpen" xml:space="preserve">
+    <value>Open Main Window</value>
+</data>
+<data name="TrayMenuExit" xml:space="preserve">
+    <value>Exit Program</value>
+  </data>
+  <data name="InvalidHotkeyConfig" xml:space="preserve">
+    <value>The hotkey you entered in the configuration file is invalid! This run has switched to the default hotkey: LCTRL+LALT+B</value>
+  </data>
 </root>

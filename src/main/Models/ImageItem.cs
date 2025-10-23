@@ -20,6 +20,19 @@ namespace PigPicPot.Models
         private System.Windows.Media.Imaging.BitmapSource? _thumbnailSource;
         private volatile bool _isThumbnailQueued;
         private bool _isCorrupted;
+        private string? _fileHash;
+
+        public string? LastModified { get; set; }
+
+        public string? FileHash
+        {
+            get => _fileHash;
+            set
+            {
+                _fileHash = value;
+                OnPropertyChanged(nameof(FileHash));
+            }
+        }
 
         public string FilePath
         {

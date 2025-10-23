@@ -240,4 +240,16 @@
   <data name="FavoriteDeleted" xml:space="preserve">
     <value>收藏夹“{0}”已删除</value>
 </data>
+  <data name="TrayNotificationText" xml:space="preserve">
+    <value>PigPicPot在这里！右键以访问其功能。</value>
+  </data>
+  <data name="TrayMenuOpen" xml:space="preserve">
+    <value>打开主窗口</value>
+  </data>
+  <data name="TrayMenuExit" xml:space="preserve">
+    <value>退出程序</value>
+  </data>
+  <data name="InvalidHotkeyConfig" xml:space="preserve">
+    <value>你在配置文件中输入的热键不正确！本次运行程序已切换至默认热键：LCTRL+LALT+B</value>
+  </data>
 </root>

@@ -153,6 +153,19 @@
             <TextBlock x:Name="NotificationText" Text="Copied to clipboard!" Foreground="White" FontSize="10" HorizontalAlignment="Center" VerticalAlignment="Center"/>
         </Border>
 
+        <!-- Control Buttons Panel -->
+        <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Bottom" Margin="10">
+            <!-- Reset Button -->
+            <Button x:Name="ResetMemoryButton" Width="15" Height="15" Opacity="0.7" Margin="0,0,5,0" Click="ResetMemoryButton_Click">
+                <TextBlock Text="♻" FontSize="11" FontWeight="Bold" Foreground="#4682B4"/>
+            </Button>
+            
+            <!-- Toggle Background Button -->
+            <Button x:Name="ToggleBackgroundButton" Width="15" Height="15" Opacity="0.7" Click="ToggleBackgroundButton_Click">
+                <TextBlock Text="Ⓑ" FontSize="11" FontWeight="Bold" Foreground="#4682B4"/>
+            </Button>
+        </StackPanel>
+
         <!-- Info Button -->
         <Button x:Name="MiniInfoButton" HorizontalAlignment="Left" VerticalAlignment="Bottom" Margin="10" Width="15" Height="15" Opacity="0.7" Visibility="Collapsed">
             <TextBlock Text="ⓘ" FontSize="11" FontWeight="Bold" Foreground="#4682B4"/>

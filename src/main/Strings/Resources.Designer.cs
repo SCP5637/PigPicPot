@@ -427,5 +427,14 @@ namespace PigPicPot.Strings {
                 return ResourceManager.GetString("ZhuxxFilterButtonText", resourceCulture);
             }
         }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to The hotkey you entered in the configuration file is invalid! This run has switched to the default hotkey: LCTRL+LALT+B.
+        /// </summary>
+        public static string InvalidHotkeyConfig {
+            get {
+                return ResourceManager.GetString("InvalidHotkeyConfig", resourceCulture);
+            }
+        }
     }
 }

@@ -7,6 +7,8 @@ using PigPicPot.Models;
 using System;
 using System.Reflection;
 using System.Diagnostics;
+using PigPicPot.Helpers;
+using System.Security.Cryptography;
 
 namespace PigPicPot.Services
 {
@@ -16,11 +18,22 @@ namespace PigPicPot.Services
     /// </summary>
     public class ImageDataProvider : IImageDataProvider
     {
+        private readonly ImageDatabaseService _databaseService;
+        
         /// <summary>
         /// 所有图像项的只读集合
         /// Read-only collection of all image items
         /// </summary>
         public ReadOnlyCollection<ImageItem> AllImageItems { get; private set; } = new ReadOnlyCollection<ImageItem>(new List<ImageItem>());
+
+        /// <summary>
+        /// 构造函数，初始化图像数据库服务
+        /// Constructor, initialize image database service
+        /// </summary>
+        public ImageDataProvider()
+        {
+            _databaseService = new ImageDatabaseService();
+        }
 
         /// <summary>
         /// 异步加载图像数据
@@ -29,15 +42,41 @@ namespace PigPicPot.Services
         /// <param name="directoriesToScan">需要扫描的目录列表</param>
         public async Task LoadAsync(IEnumerable<string> directoriesToScan)
         {
+            LoggingHelper.Log("ImageDataProvider.LoadAsync started.");
+            var app = System.Windows.Application.Current as App;
+            
+            var allItems = new System.Collections.Concurrent.ConcurrentBag<ImageItem>();
+            Dictionary<string, ImageItem>? dbImageDict = null;
+            try
+            {
+                // 首先尝试从数据库加载所有图像
+                app?.UpdateSplashScreen("正在从数据库加载图像信息...", 35);
+                LoggingHelper.Log("ImageDataProvider.LoadAsync loading images from database.");
+                var dbImages = await _databaseService.LoadAllImagesAsync();
+                dbImageDict = dbImages.ToDictionary(img => img.FilePath ?? "", img => img);
+                LoggingHelper.Log($"ImageDataProvider.LoadAsync {dbImages.Count} images loaded from database.");
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error loading images from database: {ex.Message}");
+                app?.UpdateSplashScreen("数据库加载失败，使用全新加载...", 35);
+            }
+            
+            var directories = directoriesToScan.ToList();
+            int totalDirectories = directories.Count;
+            int processedDirectories = 0;
+            
+            app?.UpdateSplashScreen("正在扫描图像文件...", 40);
+            
+            var itemsToSave = new System.Collections.Concurrent.ConcurrentBag<ImageItem>();
+
+            LoggingHelper.Log("ImageDataProvider.LoadAsync starting parallel scan.");
             await Task.Run(() =>
             {
-                var allItems = new List<ImageItem>();
-                foreach (var dir in directoriesToScan)
+                Parallel.ForEach(directories, dir =>
                 {
                     if (Directory.Exists(dir))
                     {
-                        // 获取目录中的所有图像文件（排除背景图片）
-                        // Get all image files in directory (excluding background images)
                         var files = Directory.GetFiles(dir, "*.*", SearchOption.TopDirectoryOnly)
                             .Where(f => IsImageFile(f))
                             .Where(f => !IsBackgroundImage(f))
@@ -45,16 +84,81 @@ namespace PigPicPot.Services
 
                         foreach (var file in files)
                         {
-                            var imageItem = CreateImageItem(file);
+                            ImageItem? imageItem = null;
+                            
+                            try
+                            {
+                                if (dbImageDict?.TryGetValue(file, out var dbImage) == true)
+                                {
+                                    // 检查文件Hash是否匹配
+                                    string currentHash = _databaseService.CalculateFileHash(file);
+                                    if (dbImage.FileHash == currentHash)
+                                    {
+                                        // Hash匹配，直接使用数据库中的记录
+                                        imageItem = dbImage;
+                                    }
+                                    else
+                                    {
+                                        // Hash不匹配，需要重新生成缩略图
+                                        imageItem = CreateImageItem(file);
+                                        if (imageItem != null)
+                                        {
+                                            imageItem.FileHash = currentHash;
+                                            itemsToSave.Add(imageItem);
+                                        }
+                                    }
+                                }
+                            }
+                            catch (Exception ex)
+                            {
+                                Console.WriteLine($"Error checking if image needs update: {ex.Message}");
+                            }
+                            
+                            if (imageItem == null)
+                            {
+                                imageItem = CreateImageItem(file);
+                                if (imageItem != null)
+                                {
+                                    imageItem.FileHash = _databaseService.CalculateFileHash(file);
+                                    itemsToSave.Add(imageItem);
+                                }
+                            }
+                            
                             if (imageItem != null)
                             {
                                 allItems.Add(imageItem);
                             }
                         }
                     }
-                }
-                AllImageItems = new ReadOnlyCollection<ImageItem>(allItems);
+                    else
+                    {
+                        Console.WriteLine($"Directory does not exist: {dir}");
+                    }
+                    
+                    System.Threading.Interlocked.Increment(ref processedDirectories);
+                    int progress = 40 + (int)((double)processedDirectories / Math.Max(totalDirectories, 1) * 50);
+                    app?.Dispatcher.Invoke(() => app.UpdateSplashScreen($"正在扫描目录: {Path.GetFileName(dir)}", progress));
+                });
             });
+            LoggingHelper.Log("ImageDataProvider.LoadAsync parallel scan finished.");
+
+            if (!itemsToSave.IsEmpty)
+            {
+                LoggingHelper.Log($"ImageDataProvider.LoadAsync saving {itemsToSave.Count} new/updated images to database.");
+                await _databaseService.SaveImagesAsync(itemsToSave);
+                LoggingHelper.Log("ImageDataProvider.LoadAsync images saved to database.");
+            }
+            
+            AllImageItems = new ReadOnlyCollection<ImageItem>(allItems.ToList());
+            app?.UpdateSplashScreen("图像加载完成", 90);
+            LoggingHelper.Log("ImageDataProvider.LoadAsync finished.");
+        }
+
+        private bool NeedsUpdate(string filePath, ImageItem dbImage)
+        {
+            var lastWriteTime = File.GetLastWriteTime(filePath);
+            var dbLastModified = DateTime.Parse(dbImage.LastModified ?? "");
+            return lastWriteTime > dbLastModified;
         }
 
         private ImageItem? CreateImageItem(string filePath)
