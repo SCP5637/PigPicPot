@@ -1,0 +1,53 @@
+name: pig_pic_pot
+description: A new Flutter project.
+publish_to: 'none'
+version: 0.1.0
+
+environment:
+  sdk: '>=3.0.0 <4.0.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+  
+  # 窗口管理：用于置顶、隐藏标题栏等
+  window_manager: ^0.5.1
+  # 强大的拖拽插件：支持将文件拖出到其他APP
+  super_drag_and_drop: ^0.8.0
+  super_clipboard: ^0.8.0
+  # 全局快捷键
+  hotkey_manager: ^0.2.3
+  # 本地存储 (保存文件夹路径)
+  shared_preferences: ^2.2.2
+  # 系统托盘
+  system_tray: ^2.0.2
+  # 路径获取
+  path_provider: ^2.0.15
+  # 瀑布流布局
+  flutter_staggered_grid_view: ^0.7.0
+  # 状态管理
+  provider: ^6.1.2
+  # 文件路径处理
+  path: ^1.9.0
+  # 文件选择器
+  file_selector: ^1.0.3
+  # 动画效果
+  animations: ^2.0.11
+  # 磨砂玻璃效果 (可选，用原生也可以模拟)
+  glass_kit: ^3.0.0
+  # 缓存网络图片
+  cached_network_image: ^3.3.1 
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^3.0.0
+
+flutter:
+  uses-material-design: true
+  assets:
+    - assets/
+  # 确保 assets 包含图片（如果作为内置资源），但我们主要读取本地文件系统
+
+dependency_overrides:
+  uuid: ^4.1.0
