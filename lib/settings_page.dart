@@ -5,7 +5,8 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:hotkey_manager/hotkey_manager.dart';
 
 class SettingsPage extends StatefulWidget {
-  const SettingsPage({super.key});
+  final VoidCallback? onHotkeySet;
+  const SettingsPage({super.key, this.onHotkeySet});
 
   @override
   State<SettingsPage> createState() => _SettingsPageState();
@@ -127,6 +128,9 @@ class _SettingsPageState extends State<SettingsPage> {
       _shortcutLabel = label;
       _isRecording = false;
     });
+
+    // 4. 调用回调，立即重新注册快捷键
+    widget.onHotkeySet?.call();
 
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(

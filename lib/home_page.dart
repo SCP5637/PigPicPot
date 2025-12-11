@@ -10,7 +10,7 @@ import 'package:window_manager/window_manager.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'pig_draggable.dart';
 import 'settings_page.dart'; // 引入设置页
-import 'dart:ui'; 
+import 'dart:ui';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -23,54 +23,123 @@ class _HomePageState extends State<HomePage> with WindowListener {
   // 数据源
   List<File> _allPigFiles = [];
   List<File> _displayedPigFiles = [];
-  
+
   // 状态
   bool _isAlwaysOnTop = false;
   String? _rootPath;
   bool _isLoading = false;
   final TextEditingController _searchController = TextEditingController();
   final FocusNode _searchFocusNode = FocusNode();
-  
+
   // 防抖锁
   bool _isProcessingHotkey = false;
-  
+
   // 信号通知器
   final ValueNotifier<int> _hotkeySignal = ValueNotifier(0);
 
   // 存储 Key
   static const String _prefKeyRootPath = 'pig_root_path';
 
+  // 1. 新增：手动维护窗口状态
+  bool _isWindowVisible = true;
+  bool _isWindowMinimized = false;
+  bool _isWindowFocused = true; // 新增焦点状态
+
   @override
   void initState() {
     super.initState();
     windowManager.addListener(this);
-    
-    // 监听信号，在主线程安全操作窗口
+
+    // 初始化状态检查
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+       _isWindowVisible = await windowManager.isVisible();
+       _isWindowMinimized = await windowManager.isMinimized();
+       _isWindowFocused = await windowManager.isFocused();
+    });
+
+    // 监听信号
     _hotkeySignal.addListener(() {
       if (_isProcessingHotkey) return;
       _isProcessingHotkey = true;
-      
-      debugPrint("收到快捷键信号，执行操作");
-      
-      Future.delayed(const Duration(milliseconds: 100), () async {
-        try {
-          if (await windowManager.isVisible()) {
-            await windowManager.hide();
-          } else {
-            await windowManager.show();
-            await windowManager.focus();
-            await windowManager.restore();
-          }
-        } catch (e) {
-          debugPrint("窗口操作异常: $e");
-        } finally {
-           _isProcessingHotkey = false;
-        }
+
+      // 使用 Future.delayed(Duration.zero) 替代 SchedulerBinding
+      // 这能将任务推迟到下一个微任务，避开原生冲突，且不依赖“下一帧”
+      Future.delayed(Duration.zero, () {
+        _handleHotkeyToggle();
       });
     });
 
-    _registerHotkey(); // 全平台注册快捷键
-    _loadSavedPath(); // 启动时加载路径
+    _registerHotkey();
+    _loadSavedPath();
+  }
+
+  // 2. 核心：实现“呼出”逻辑
+  Future<void> _handleHotkeyToggle() async {
+    try {
+      debugPrint("执行“呼出”操作");
+
+      // 1. 无条件让窗口可见
+      await windowManager.show();
+
+      // 2. 如果窗口之前是最小化的，需要恢复它
+      if (_isWindowMinimized) {
+        await windowManager.restore();
+      }
+
+      // 3. 始终确保它在最前端并拥有焦点
+      await windowManager.focus();
+
+    } catch (e) {
+      debugPrint("窗口操作异常: $e");
+    } finally {
+      // 稍微延迟一点释放锁，防止连按
+      Future.delayed(const Duration(milliseconds: 200), () {
+        _isProcessingHotkey = false;
+      });
+    }
+  }
+
+  // 3. 实现 WindowListener 的方法来被动更新状态
+
+  @override
+  void onWindowFocus() {
+    setState(() {
+      _isWindowVisible = true;
+      _isWindowMinimized = false;
+      _isWindowFocused = true;
+    });
+  }
+
+  @override
+  void onWindowBlur() {
+    setState(() {
+      _isWindowFocused = false;
+    });
+  }
+
+  @override
+  void onWindowMinimize() {
+    setState(() {
+      _isWindowVisible = false;
+      _isWindowMinimized = true;
+      _isWindowFocused = false;
+    });
+  }
+
+  @override
+  void onWindowRestore() {
+    setState(() {
+      _isWindowVisible = true;
+      _isWindowMinimized = false;
+      // 焦点状态将在随后的 onWindowFocus 中更新
+    });
+  }
+
+  @override
+  void onWindowHide() {
+    setState(() {
+      _isWindowVisible = false;
+    });
   }
 
   @override
@@ -102,13 +171,13 @@ class _HomePageState extends State<HomePage> with WindowListener {
   // 注册全局快捷键
   Future<void> _registerHotkey() async {
     debugPrint("正在注册全局快捷键...");
-    
+
     final prefs = await SharedPreferences.getInstance();
-    
+
     // 默认快捷键: Mac为Cmd+X, 其他为Ctrl+X
     int? keyId = prefs.getInt('hotkey_key_id');
     List<String>? modifiersStr = prefs.getStringList('hotkey_modifiers');
-    
+
     debugPrint("读取配置: keyId=$keyId, modifiers=$modifiersStr");
 
     LogicalKeyboardKey key;
@@ -117,7 +186,7 @@ class _HomePageState extends State<HomePage> with WindowListener {
     if (keyId != null && modifiersStr != null) {
       key = LogicalKeyboardKey.findKeyByKeyId(keyId) ?? LogicalKeyboardKey.keyX;
       debugPrint("恢复按键: ID=$keyId -> ${key.debugName}");
-      
+
       modifiers = modifiersStr.map((e) {
         if (e.contains('meta')) return HotKeyModifier.meta;
         if (e.contains('control')) return HotKeyModifier.control;
@@ -140,7 +209,7 @@ class _HomePageState extends State<HomePage> with WindowListener {
     final hotKey = HotKey(
       key: key,
       modifiers: modifiers,
-      scope: HotKeyScope.system, 
+      scope: HotKeyScope.system,
     );
 
     await hotKeyManager.unregisterAll();
@@ -148,7 +217,7 @@ class _HomePageState extends State<HomePage> with WindowListener {
     try {
       // 这里的 lastTriggerTime 用于防止物理按键长按导致的事件洪流
       DateTime lastTriggerTime = DateTime.fromMillisecondsSinceEpoch(0);
-      
+
       await hotKeyManager.register(
         hotKey,
         keyDownHandler: (hotKey) {
@@ -157,7 +226,7 @@ class _HomePageState extends State<HomePage> with WindowListener {
           if (now.difference(lastTriggerTime) > const Duration(milliseconds: 500)) {
             lastTriggerTime = now;
             debugPrint("触发快捷键: ${key.keyId}");
-            _hotkeySignal.value++; 
+            _hotkeySignal.value++;
           }
         },
       );
@@ -262,7 +331,6 @@ class _HomePageState extends State<HomePage> with WindowListener {
                 // === 自定义顶部栏 ===
                 Container(
                   height: 60, // 缩短高度
-                  padding: const EdgeInsets.only(top: 10), // 缩短内边距
                   decoration: BoxDecoration(
                     color: Colors.white.withOpacity(0.6),
                     border: Border(bottom: BorderSide(color: Colors.grey.withOpacity(0.1))),
@@ -271,13 +339,13 @@ class _HomePageState extends State<HomePage> with WindowListener {
                     children: [
                       // 1. 底层：拖拽监听层
                       GestureDetector(
-                        behavior: HitTestBehavior.translucent,
+                        behavior: HitTestBehavior.opaque,
                         onPanStart: (details) => windowManager.startDragging(),
                         child: const SizedBox.expand(),
                       ),
                       // 2. 顶层：交互按钮层
                       Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 16),
+                        padding: const EdgeInsets.only(top: 10, left: 8, right: 8),
                         child: Row(
                           children: [
                             // 文件夹选择
@@ -299,12 +367,18 @@ class _HomePageState extends State<HomePage> with WindowListener {
                                   controller: _searchController,
                                   focusNode: _searchFocusNode,
                                   onChanged: _filterImages,
+                                  textAlignVertical: TextAlignVertical.center,
                                   decoration: const InputDecoration(
                                     hintText: '搜点什么猪...',
                                     hintStyle: TextStyle(fontSize: 13, color: Colors.grey),
                                     border: InputBorder.none,
-                                    contentPadding: EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                                    contentPadding: EdgeInsets.zero,
                                     prefixIcon: Icon(Icons.search, size: 18, color: Colors.grey),
+                                    prefixIconConstraints: BoxConstraints(
+                                      minWidth: 32,
+                                      minHeight: 36,
+                                    ),
+                                    isDense: true,
                                   ),
                                   style: const TextStyle(fontSize: 13),
                                 ),
@@ -326,7 +400,7 @@ class _HomePageState extends State<HomePage> with WindowListener {
                                 Navigator.push(
                                   context,
                                   PageRouteBuilder(
-                                    pageBuilder: (context, animation, secondaryAnimation) => const SettingsPage(),
+                                    pageBuilder: (context, animation, secondaryAnimation) => SettingsPage(onHotkeySet: _registerHotkey),
                                     transitionsBuilder: (context, animation, secondaryAnimation, child) {
                                       const begin = 0.0;
                                       const end = 1.0;
@@ -339,7 +413,7 @@ class _HomePageState extends State<HomePage> with WindowListener {
                                     },
                                     transitionDuration: const Duration(milliseconds: 200), // 缩短动画时间，更干脆
                                   ),
-                                ).then((_) => _registerHotkey()); // 返回时刷新快捷键
+                                );
                               },
                               tooltip: "设置",
                             ),
@@ -354,12 +428,12 @@ class _HomePageState extends State<HomePage> with WindowListener {
                     ],
                   ),
                 ),
-                
+
                 // === 内容区域 ===
                 Expanded(
                   child: _buildBody(),
                 ),
-                
+
                 // === 底部简易状态栏 ===
                 Container(
                   height: 24,

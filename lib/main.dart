@@ -5,6 +5,7 @@ import 'package:window_manager/window_manager.dart';
 import 'package:hotkey_manager/hotkey_manager.dart';
 import 'package:system_tray/system_tray.dart';
 import 'package:path_provider/path_provider.dart';
+import 'package:path/path.dart' as p;
 import 'home_page.dart';
 
 void main() async {
@@ -19,8 +20,8 @@ void main() async {
     minimumSize: Size(300, 400),
     center: true,
     backgroundColor: Colors.transparent, 
-    skipTaskbar: false, 
-    titleBarStyle: TitleBarStyle.hidden, 
+    skipTaskbar: true, 
+    titleBarStyle: TitleBarStyle.hidden,  
   );
   
   await windowManager.waitUntilReadyToShow(windowOptions, () async {
@@ -35,33 +36,51 @@ void main() async {
   runApp(const MyApp());
 }
 
-// 提取图标到临时文件 (macOS 托盘必须使用真实文件路径)
+// 提取图标到临时文件
 Future<String> _extractIcon() async {
-  String assetPath = 'assets/app_icon.png';
-  String fileName = 'tray_icon.png';
+  final String assetPath = Platform.isWindows ? 'assets/app_icon.ico' : 'assets/app_icon.png';
+  final String fileName = Platform.isWindows ? 'tray_icon.ico' : 'tray_icon.png';
 
   try {
     final byteData = await rootBundle.load(assetPath);
     final tempDir = await getTemporaryDirectory();
-    final file = File('${tempDir.path}/$fileName');
+    final file = File(p.join(tempDir.path, fileName));
     await file.writeAsBytes(byteData.buffer.asUint8List());
+    debugPrint("图标已成功提取到: ${file.path}");
     return file.path;
   } catch (e) {
-    debugPrint("图标提取失败: $e");
+    debugPrint("提取托盘图标失败: $e");
     return "";
   }
 }
 
+bool _systemTrayInitialized = false;
+
 Future<void> _initSystemTray() async {
-  final SystemTray systemTray = SystemTray();
-  
+  if (_systemTrayInitialized) {
+    debugPrint("系统托盘已初始化，跳过。");
+    return;
+  }
+
   String iconPath = await _extractIcon();
   
-  await systemTray.initSystemTray(
-    title: "", 
-    iconPath: iconPath,
-    toolTip: "PigPicPot",
-  );
+  if (iconPath.isEmpty) {
+    debugPrint("图标路径为空，中止系统托盘初始化。");
+    return;
+  }
+
+  final SystemTray systemTray = SystemTray();
+  
+  try {
+    await systemTray.initSystemTray(
+      title: "", 
+      iconPath: iconPath,
+      toolTip: "PigPicPot",
+    );
+  } catch (e) {
+    debugPrint("初始化系统托盘失败: $e");
+    return; // 如果失败则中止
+  }
 
   final Menu menu = Menu();
   await menu.buildFrom([
@@ -83,6 +102,9 @@ Future<void> _initSystemTray() async {
       systemTray.popUpContextMenu();
     }
   });
+
+  _systemTrayInitialized = true;
+  debugPrint("系统托盘初始化成功。");
 }
 
 class MyApp extends StatelessWidget {
