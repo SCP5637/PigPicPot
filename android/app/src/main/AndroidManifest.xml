@@ -1,6 +1,6 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
     <application
-        android:label="pig_pic_pot"
+        android:label="PigPicPot"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
         <activity
