@@ -1,4 +1,4 @@
-name: pig_pic_pot
+name: PigPicPot
 description: A new Flutter project.
 publish_to: 'none'
 version: 0.1.0
@@ -9,7 +9,7 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
-  
+
   # 窗口管理：用于置顶、隐藏标题栏等
   window_manager: ^0.5.1
   # 强大的拖拽插件：支持将文件拖出到其他APP
@@ -36,7 +36,7 @@ dependencies:
   # 磨砂玻璃效果 (可选，用原生也可以模拟)
   glass_kit: ^3.0.0
   # 缓存网络图片
-  cached_network_image: ^3.3.1 
+  cached_network_image: ^3.3.1
 
 dev_dependencies:
   flutter_test:
