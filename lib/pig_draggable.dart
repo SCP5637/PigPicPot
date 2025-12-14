@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'package:super_drag_and_drop/super_drag_and_drop.dart';
 import 'package:super_clipboard/super_clipboard.dart';
@@ -72,7 +73,7 @@ class PigDraggableItem extends StatelessWidget {
                   )
                 ]
               ),
-              child: Image.file(file, fit: BoxFit.cover),
+              child: _PigImage(file: file, fit: BoxFit.cover),
             ),
           ),
         );
@@ -101,16 +102,9 @@ class PigDraggableItem extends StatelessWidget {
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                   Image.file(
-                    file,
-                    key: ValueKey(file.path), // 增加 Key 帮助复用
-                    gaplessPlayback: true, // 防止图片重绘时闪烁
+                   _PigImage(
+                    file: file,
                     fit: BoxFit.cover,
-                    errorBuilder: (ctx, err, stack) => Container(
-                      height: 100,
-                      color: Colors.grey[200],
-                      child: const Icon(Icons.broken_image, color: Colors.grey),
-                    ),
                   ),
                 ],
               ),
@@ -130,5 +124,118 @@ class PigDraggableItem extends StatelessWidget {
         ),
       ),
     );
+  }
+}
+
+class _PigImage extends StatelessWidget {
+  final File file;
+  final BoxFit fit;
+  
+  const _PigImage({required this.file, this.fit = BoxFit.cover});
+
+  @override
+  Widget build(BuildContext context) {
+    final isGif = p.extension(file.path).toLowerCase() == '.gif';
+    if (!isGif) {
+      return Image.file(
+        file,
+        key: ValueKey(file.path),
+        gaplessPlayback: true,
+        fit: fit,
+        errorBuilder: (ctx, err, stack) => _buildErrorWidget(),
+      );
+    }
+    return _StaticGifImage(
+      file: file,
+      fit: fit,
+      key: ValueKey(file.path),
+    );
+  }
+
+  Widget _buildErrorWidget() => Container(
+      height: 100,
+      color: Colors.grey[200],
+      child: const Icon(Icons.broken_image, color: Colors.grey),
+  );
+}
+
+class _StaticGifImage extends StatefulWidget {
+  final File file;
+  final BoxFit fit;
+  const _StaticGifImage({super.key, required this.file, required this.fit});
+
+  @override
+  State<_StaticGifImage> createState() => _StaticGifImageState();
+}
+
+class _StaticGifImageState extends State<_StaticGifImage> {
+  ui.Image? _image;
+  bool _loading = true;
+  bool _hasError = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  @override
+  void didUpdateWidget(covariant _StaticGifImage oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.file.path != widget.file.path) {
+      _load();
+    }
+  }
+  
+  Future<void> _load() async {
+    // 如果已经在加载新的，可以考虑取消旧的，但 simplistic approach:
+    // Reset state first
+    if (mounted) {
+      setState(() {
+        _loading = true;
+        _hasError = false;
+        _image = null; // 可选：保留旧图直到新图加载完成？为了简单先置空
+      });
+    }
+
+    try {
+        final bytes = await widget.file.readAsBytes();
+        final codec = await ui.instantiateImageCodec(bytes);
+        final frame = await codec.getNextFrame();
+        if (mounted) {
+            setState(() {
+                _image = frame.image;
+                _loading = false;
+            });
+        }
+    } catch (e) {
+        debugPrint('Error loading GIF frame: $e');
+        if (mounted) {
+            setState(() {
+                _loading = false;
+                _hasError = true;
+            });
+        }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+      if (_hasError) {
+        return Container(
+          height: 100,
+          color: Colors.grey[200],
+          child: const Icon(Icons.broken_image, color: Colors.grey),
+        );
+      }
+      if (_loading || _image == null) {
+         // 使用透明占位或灰色背景
+         return Container(color: Colors.grey[100]); 
+      }
+      
+      return RawImage(
+        image: _image,
+        fit: widget.fit,
+      );
   }
 }
