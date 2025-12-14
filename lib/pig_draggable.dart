@@ -5,6 +5,22 @@ import 'package:super_drag_and_drop/super_drag_and_drop.dart';
 import 'package:super_clipboard/super_clipboard.dart';
 import 'package:path/path.dart' as p;
 
+/// 一个简单的内存缓存，用于存储GIF的第一帧，避免反复解码导致的闪烁和CPU消耗
+class _GifFrameCache {
+  static final Map<String, ui.Image> _cache = {};
+  static const int _maxSize = 200; // 最大缓存数量
+
+  static ui.Image? get(String path) => _cache[path];
+
+  static void put(String path, ui.Image image) {
+    if (_cache.length >= _maxSize) {
+      // 简单移除第一个（最旧的）
+      _cache.remove(_cache.keys.first);
+    }
+    _cache[path] = image;
+  }
+}
+
 class PigDraggableItem extends StatelessWidget {
   final File file;
 
@@ -135,16 +151,22 @@ class _PigImage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final isGif = p.extension(file.path).toLowerCase() == '.gif';
+    final ext = p.extension(file.path).toLowerCase();
+    // 明确判定 GIF
+    final isGif = ext == '.gif';
+
     if (!isGif) {
+      // 普通图片（jpg, png, webp...）使用标准 Image.file
       return Image.file(
         file,
-        key: ValueKey(file.path),
-        gaplessPlayback: true,
+        key: ValueKey(file.path), // 确保复用正确
+        gaplessPlayback: true,    // 防止重绘闪烁
         fit: fit,
         errorBuilder: (ctx, err, stack) => _buildErrorWidget(),
       );
     }
+    
+    // GIF 图片使用自定义的静态帧加载器
     return _StaticGifImage(
       file: file,
       fit: fit,
@@ -170,7 +192,6 @@ class _StaticGifImage extends StatefulWidget {
 
 class _StaticGifImageState extends State<_StaticGifImage> {
   ui.Image? _image;
-  bool _loading = true;
   bool _hasError = false;
 
   @override
@@ -188,13 +209,28 @@ class _StaticGifImageState extends State<_StaticGifImage> {
   }
   
   Future<void> _load() async {
-    // 如果已经在加载新的，可以考虑取消旧的，但 simplistic approach:
-    // Reset state first
-    if (mounted) {
+    final path = widget.file.path;
+    
+    // 1. 先查缓存
+    final cachedImage = _GifFrameCache.get(path);
+    if (cachedImage != null) {
+      if (mounted) {
+        setState(() {
+          _image = cachedImage;
+          _hasError = false;
+        });
+      }
+      return;
+    }
+
+    // 2. 缓存未命中，开始加载
+    // 如果当前已经有图片（比如复用 widget），为了实现 gaplessPlayback 效果，
+    // 我们暂时不把 _image 置空，而是等新图加载完再替换。
+    // 只在完全没有图的时候（首次加载）才重置状态（其实不需要特意重置，保持 null 即可显示占位）
+    
+    if (_image == null && mounted) {
       setState(() {
-        _loading = true;
         _hasError = false;
-        _image = null; // 可选：保留旧图直到新图加载完成？为了简单先置空
       });
     }
 
@@ -202,17 +238,19 @@ class _StaticGifImageState extends State<_StaticGifImage> {
         final bytes = await widget.file.readAsBytes();
         final codec = await ui.instantiateImageCodec(bytes);
         final frame = await codec.getNextFrame();
-        if (mounted) {
+        
+        // 存入缓存
+        _GifFrameCache.put(path, frame.image);
+
+        if (mounted && widget.file.path == path) { // 再次检查 path 确保没被篡改
             setState(() {
                 _image = frame.image;
-                _loading = false;
             });
         }
     } catch (e) {
-        debugPrint('Error loading GIF frame: $e');
+        debugPrint('Error loading GIF frame for $path: $e');
         if (mounted) {
             setState(() {
-                _loading = false;
                 _hasError = true;
             });
         }
@@ -228,8 +266,9 @@ class _StaticGifImageState extends State<_StaticGifImage> {
           child: const Icon(Icons.broken_image, color: Colors.grey),
         );
       }
-      if (_loading || _image == null) {
-         // 使用透明占位或灰色背景
+      
+      // 如果正在加载且没有旧图显示，展示占位
+      if (_image == null) {
          return Container(color: Colors.grey[100]); 
       }
       
