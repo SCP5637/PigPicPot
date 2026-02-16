@@ -2,7 +2,7 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 17
 VisualStudioVersion = 17.5.2.0
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "PigPicPot", "src\main\PigPicPot.csproj", "{5B822A77-41D2-EC83-E62D-8BF9772B04BA}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "PigPicPot", "PigPicPot.csproj", "{5B822A77-41D2-EC83-E62D-8BF9772B04BA}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
