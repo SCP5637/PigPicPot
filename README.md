@@ -1,6 +1,6 @@
 ## 本仓库能提供什么？
 
-![Demo](https://github.com/SCP5637/PigPicPot/demo.png)
+![Demo](https://github.com/SCP5637/PigPicPot/blob/main/demo.png)
 
 - 一个由Flutter开发的**随用随贴**猪图的应用，旨在能够在电脑上像剪贴板一样调出来。
 - 互联网上收集到的**大量猪图表情包**，猪图大开源^ ^
